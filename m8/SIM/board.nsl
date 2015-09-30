@@ -1,0 +1,89 @@
+declare m8 {
+ output a[8], d[8];
+ input  i[8];
+ func_in start();
+ func_out mr(),mw();
+}
+
+declare ram256 interface {
+    input      datai[8] ;
+    output     datao[8] ;
+    input      adr[8] ;
+    input m_clock,p_reset;
+    func_in    rd(adr),wt(adr,datai);
+}
+
+
+declare board {
+ input  btn[3], RXD, PS2D, PS2C;
+ output TXD, VGA_R, VGA_G, VGA_B, VGA_H, VGA_V;
+ output led[8];
+ output sseg[8], an[4];
+ input  sw[8];
+}
+module board {
+ reg timer[16]=0, run=0;
+ reg ledr[8], seg0[8], seg1[8], seg2[8], seg3[8];
+
+  m8       cpu;
+  ram256   ram;
+
+
+ {
+
+  timer := timer + 0x0001;
+  if(~run & (timer==0xffff)) { cpu.start(); run:=0b1; }
+
+  any {
+   timer[15:14]==0b00: { an=0x1; sseg = seg0; }
+   timer[15:14]==0b01: { an=0x2; sseg = seg1; }
+   timer[15:14]==0b10: { an=0x4; sseg = seg2; }
+   timer[15:14]==0b11: { an=0x8; sseg = seg3; }
+  }
+
+  led = ledr;
+
+  ram.m_clock = ~m_clock;
+  ram.p_reset = p_reset;
+
+  TXD = 0b0;
+
+  VGA_R = 0b0;
+  VGA_G = 0b0;
+  VGA_B = 0b0;
+  VGA_H = 0b0;
+  VGA_V = 0b0;
+
+}
+
+ func cpu.mr {
+    any {
+    cpu.a == 0xFF: cpu.i = sw;
+    else: cpu.i = ram.rd(cpu.a).datao;
+    }
+ }
+ func cpu.mw {
+    any {
+    cpu.a == 0xFF: seg3 := cpu.d;
+    cpu.a == 0xFE: seg2 := cpu.d;
+    cpu.a == 0xFD: seg1 := cpu.d;
+    cpu.a == 0xFC: seg0 := cpu.d;
+    cpu.a == 0xF0: ledr := cpu.d;
+    else: ram.wt(cpu.a,cpu.d);
+    }
+ }
+}
+
+module ram256 {
+    reg dout[8];
+    mem ram[256][8];
+
+    dout := ram[adr];
+
+    func rd {
+		datao = dout;
+	}
+    func wt {
+		ram[adr] := datai;
+	}
+}

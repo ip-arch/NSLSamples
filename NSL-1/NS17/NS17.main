@@ -1,0 +1,29 @@
+module main;
+ integer i;
+ wire f;
+ reg do,in;
+ reg p_reset, m_clock;
+ NS17 NS17(.p_reset(p_reset),.m_clock(m_clock),.do(do));
+
+ initial begin
+  $dumpfile("NS17.vcd");
+  $dumpvars;
+  m_clock = 0;
+  p_reset = 1;
+  #1
+  p_reset = 0;
+  for(i=0;i<16;i=i+1)
+   begin
+    do = (i&3)==0;
+    #1 m_clock=1;
+    #1 m_clock=0;
+    case(main.NS17._reg_0)
+      NS17._state__reg_0_st1: $display("do:%b  state:st1", do);
+      NS17._state__reg_0_st2: $display("do:%b  state:st2", do);
+      NS17._state__reg_0_st3: $display("do:%b  state:st3", do);
+    endcase
+    do = 0;
+   end
+   #1 $finish;
+ end
+endmodule

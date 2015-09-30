@@ -1,0 +1,19 @@
+declare NS10 {
+  input a,b;
+  output f;
+  func_in exec_and();
+  func_in exec_or();
+  func_in exec_xor();
+}
+
+module NS10 {
+  func exec_and {
+	f = a & b;
+  }
+  func exec_or {
+	f = a | b;
+  }
+  func exec_xor {
+	f = a ^ b;
+  }
+}

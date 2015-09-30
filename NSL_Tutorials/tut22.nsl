@@ -1,0 +1,17 @@
+declare tut22 simulation {}
+struct ct {
+	a[2];
+	b[4];
+	c[2];
+	};
+module tut22 {
+	reg x[8]=0xa5;
+	wire y[2];
+	_init {
+		{
+		y=(ct)(x).c;
+		_display("x=%02x, (ct)(x).b=%x, y=%x", x, (ct)(x).b, y);
+		}
+		_finish();
+		}
+}

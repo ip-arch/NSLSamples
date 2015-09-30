@@ -1,0 +1,18 @@
+declare tut13 simulation { }
+ 
+module tut13 {
+    reg count[8] = 0;
+    wire value[8];
+    func_self  start(value);
+ 
+    count++;
+    if(count==100) start(count);
+ 
+    func start seq {
+        _display("Hello World: value = %d, count = %d", value, count);
+        _display("count = %d", count);
+        _display("count = %d", count);
+        _finish("bye: count = %d", count);
+    }
+}
+ 

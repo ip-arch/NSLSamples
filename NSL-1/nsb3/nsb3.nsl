@@ -1,0 +1,13 @@
+declare nsb3 {
+   func_in req();
+   func_out s1,s2,s3,s4;
+}
+module nsb3 {
+   func req seq {
+      s1();
+      s2();
+      s3();
+      s4();
+   }
+  }
+

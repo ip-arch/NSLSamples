@@ -1,0 +1,12 @@
+ 
+declare tut21 simulation { }
+ 
+module tut21 {
+_init {
+	_delay(100);
+	_display("Hello World:%d",_time);
+	_delay(100);
+	_finish("bye:%d",_time);
+}
+}
+ 

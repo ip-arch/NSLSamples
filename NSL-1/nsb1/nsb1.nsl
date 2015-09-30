@@ -1,0 +1,11 @@
+declare nsb1 {
+   input a[8];
+   output f[8];
+   func_in en(a);
+}
+module nsb1 {
+   reg  r[8];
+   func en r:=a;
+   f = r;
+  }
+

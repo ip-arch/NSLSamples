@@ -1,0 +1,38 @@
+declare DCM interface {
+	param_int CLKDV_DIVIDE;
+	param_str CLK_FEEDBACK;
+	input RST, PSINCDEC, PSEN, PSCLK, CLKIN, CLKFB;
+	output PSDONE, CLK0, CLK90, CLK180, CLK270,
+		CLK2X, CLK2X180, CLKDV, CLKFX, CLKFX180,
+		LOCKED, STATUS[8];
+}
+
+declare BUFG interface {
+	input I;
+	output O;
+}
+
+declare sample {
+	input samplein;
+	output sampleout;
+}
+
+declare tut12 {}
+
+module tut12 {
+
+	BUFG buff;
+	DCM dcm2(CLKDV_DIVIDE=4, CLK_FEEDBACK="1X");
+	sample target;
+
+	dcm2.RST = p_reset;
+	dcm2.CLKIN = m_clock;
+	dcm2.CLKFB = dcm2.CLK0;
+	dcm2.PSEN = 0;
+	dcm2.PSCLK = 0;
+	dcm2.PSINCDEC =0;
+
+	buff.I = dcm2.CLKDV;
+	target.m_clock = buff.O;
+	target.p_reset = p_reset;
+}

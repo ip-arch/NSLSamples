@@ -1,0 +1,37 @@
+module main;
+parameter STEP=2;
+reg p_reset, m_clock; 
+reg PS2C; 
+reg PS2D; 
+reg RXD; 
+reg [2:0] btn; 
+reg [7:0] sw; 
+wire VGA_V; 
+wire VGA_H; 
+wire VGA_B; 
+wire VGA_G; 
+wire VGA_R; 
+wire TXD; 
+wire [7:0] led; 
+wire [3:0] an; 
+wire [7:0] sseg; 
+board board(.p_reset(p_reset),.m_clock(m_clock),.PS2C(PS2C),.PS2D(PS2D),.RXD(RXD),.btn(btn),.VGA_V(VGA_V),.VGA_H(VGA_H),.VGA_B(VGA_B),.VGA_G(VGA_G),.VGA_R(VGA_R),.TXD(TXD),.led(led),.an(an),.sseg(sseg),.sw(sw));
+initial begin
+ m_clock=0;p_reset=1;
+ #3 p_reset=0;
+ #1 board.timer = 'hfffe;
+ end
+initial forever #STEP m_clock = ~m_clock;
+always@(negedge m_clock)
+begin
+ #1 $display("PC:%02X: OP:%02X:OPR:%02X:  A:%02X:  M:%02X:%02X:%02X",
+	board.cpu.pc, board.cpu.op, board.cpu.opr, board.cpu.acc,
+        board.cpu.a,board.cpu.i,board.cpu.d);
+end
+initial begin
+$dumpfile("board.vcd");
+$dumpvars(2,board);
+$readmemh("m8.mem", board.ram.ram);
+#(STEP*500) $finish;
+end
+endmodule

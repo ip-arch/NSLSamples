@@ -1,0 +1,12 @@
+#!/bin/sh
+if [ x"$1" = x ] ; then
+  echo Usage: ./exe {-wave} module
+  exit 1
+fi
+if [ x"$1" = x-wave ] ; then
+DO=wave 
+shift
+else  DO=sim 
+fi
+
+  make -f Makefile TARGET=$1 ${DO}

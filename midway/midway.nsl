@@ -1,0 +1,100 @@
+declare my80x {
+    input    datai[8] ;
+    output   datao[8] ;
+    output   adrs[16] ;
+   /* func_in  extint; */
+    func_out memory_read;
+    func_out memory_write;
+   /* func_out io_read;*/
+   /* func_out io_write;*/
+    input joypad1[8] ;
+    input joypad2[8] ;
+}
+
+declare vga {
+	func_out r,g,b;
+	output h,v;
+	func_out mr;
+	func_in  mbusy;
+	input data[8];
+	output adr[13];
+}
+
+declare ram8k interface {
+    input      datai[8] ;
+    output     datao[8] ;
+    input      adr[13] ;
+    input m_clock,p_reset;
+
+    func_in  rd(adr);
+    func_in  wt(adr,datai);
+}
+
+
+declare midway {
+ input  btn[3], RXD, PS2D, PS2C;
+ output TXD, VGA_R, VGA_G, VGA_B, VGA_H, VGA_V;
+ output led[8];
+ output sseg[8], an[4];
+ input  sw[8];
+}
+
+module midway {
+
+ my80x   cpu;
+ vga     vga10m;
+ ram8k   rom, vram;
+
+
+  rom.m_clock = ~m_clock;
+  rom.p_reset = p_reset;
+
+  vram.m_clock = ~m_clock;
+  vram.p_reset = p_reset;
+
+  cpu.joypad2 = 0x81;
+  cpu.joypad1 = {0b1,btn[0],btn[2],btn[1],0b0,sw[1],sw[2],~sw[0]};
+
+  TXD = 0b0;
+
+  VGA_R = vga10m.r;
+  VGA_G = vga10m.g;
+  VGA_B = vga10m.b;
+  VGA_H = ~vga10m.h;
+  VGA_V = ~vga10m.v;
+
+  sseg = 0xFF;
+  an = 0xF;
+  led  = cpu.adrs[7:0];
+  if((cpu.memory_read | cpu.memory_write) & (cpu.adrs[15:13] == 0b001))
+    	vga10m.mbusy();
+
+ func cpu.memory_read {
+    any {
+    cpu.adrs[15:13] == 0b000: cpu.datai = rom.rd(cpu.adrs[12:0]).datao;
+    cpu.adrs[15:13] == 0b001: cpu.datai = vram.rd(cpu.adrs[12:0]).datao;
+    }
+ }
+ func cpu.memory_write {
+    any {
+    cpu.adrs[15:13] == 0b000: rom.wt(cpu.adrs[12:0],cpu.datao);
+    cpu.adrs[15:13] == 0b001: vram.wt(cpu.adrs[12:0],cpu.datao);
+    }
+ }
+ func vga10m.mr {
+        vga10m.data = vram.rd(~vga10m.adr).datao;
+ }
+}
+
+module ram8k {
+    reg dout[8];
+    mem ram[8192][8];
+
+    dout := ram[adr];
+
+    func rd datao = dout;
+    func wt ram[adr] := datai;
+}
+
+#include "my80x.nsl"
+#include "vga10m.nsl"

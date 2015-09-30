@@ -1,0 +1,27 @@
+declare tut15 simulation { }
+ 
+module tut15 {
+    reg count[8] = 0;
+    reg value[8];
+    proc_name  start(value), subproc();
+ 
+    count++;
+    if(count==100) start(count);
+    if(count==200) _finish("countX = %d", count);
+ 
+    proc start seq {
+        _display("count1 = %d", count);
+        _display("count2 = %d", count);
+	subproc();
+        _display("count3 = %d", count);
+	finish;
+    }
+
+    proc subproc seq {
+        _display("sub:count1 = %d", count);
+        _display("sub:count2 = %d", count);
+        _display("sub:count3 = %d", count);
+	finish;
+    }
+}
+ 

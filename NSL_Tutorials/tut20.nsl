@@ -1,0 +1,10 @@
+declare tut20 simulation { }
+ 
+module tut20 {
+	_init {
+		_delay(100);
+		_finish("Hello World: time = %d",_time);
+	}
+//	_finish("P");
+}
+

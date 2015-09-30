@@ -1,0 +1,32 @@
+module main;
+ reg [7:0] a, in;
+ reg p_reset,m_clock, req;
+ wire [7:0] f;
+ nsb2 nsb2(.p_reset(p_reset),.m_clock(m_clock),.a(a),.req(req),.ack(ack),.f(f));
+
+ initial begin
+  p_reset = 1;
+  m_clock = 0;
+  in = 0;
+  #1 m_clock = ~m_clock;
+  p_reset = 0;
+  forever #1 m_clock = ~m_clock;
+  end
+
+  always @(negedge m_clock) begin
+     in <= in + 1;
+     begin
+      a = $random;
+      $display("a:%x, req:%d, ack:%d, f:%x", a,req,ack,f);
+     end
+     if(in>=12) #1 $finish;
+  end
+
+ initial begin
+  $dumpfile("nsb2.vcd");
+  $dumpvars;
+     req=0;
+  #4 req=1;
+  #2 req=0;
+ end
+endmodule

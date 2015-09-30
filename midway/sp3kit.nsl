@@ -1,0 +1,68 @@
+declare midway interface {
+ input m_clock, p_reset;
+ input  btn[3], RXD, PS2D, PS2C;
+ output TXD, VGA_R, VGA_G, VGA_B, VGA_H, VGA_V;
+ output led[8];
+ output sseg[8], an[4];
+ input  sw[8];
+}
+
+
+declare DCM interface{
+ param_int CLKDV_DIVIDE;
+ param_str CLK_FEEDBACK;
+ input RST, PSINCDEC, PSEN, PSCLK, CLKIN, CLKFB;
+ output PSDONE, CLK0, CLK90, CLK180, CLK270,
+        CLK2X, CLK2X180, CLKDV, CLKFX, CLKFX180,
+	LOCKED, STATUS[8];
+}
+
+declare BUFG interface{
+ output O;
+ input  I;
+}
+
+declare sp3kit {
+ input  btn[3], RXD, PS2D, PS2C;
+ output TXD, VGA_R, VGA_G, VGA_B, VGA_H, VGA_V;
+ output led[8];
+ output sseg[8], an[4];
+ input  sw[8];
+}
+
+module sp3kit {
+
+ midway   board;
+
+ BUFG clk;
+ DCM dcm(CLKDV_DIVIDE=5, CLK_FEEDBACK="1X");
+
+  dcm.RST = p_reset;
+  dcm.CLKIN = m_clock;
+  dcm.CLKFB = dcm.CLK0;
+  dcm.PSEN = 0b0;
+  dcm.PSCLK = 0b0;
+  dcm.PSINCDEC = 0b0;
+  clk.I = dcm.CLKDV;
+
+  board.m_clock = clk.O;
+  board.p_reset = p_reset;
+  board.sw = sw;
+  board.btn = btn;
+  led = board.led;
+  sseg = board.sseg;
+  an = board.an;
+  
+
+  TXD = 0b0;
+
+  VGA_R = board.VGA_R;
+  VGA_G = board.VGA_G;
+  VGA_B = board.VGA_B;
+  VGA_H = board.VGA_H;
+  VGA_V = board.VGA_V;
+
+}
+
+#include "midway.nsl"
+

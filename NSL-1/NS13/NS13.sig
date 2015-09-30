@@ -1,0 +1,9 @@
+main.NS13.do
+main.NS13.a[3:0]
+main.NS13.b[3:0]
+main.NS13.f[3:0]
+main.NS13.sub1.do
+main.NS13.sub1.done
+main.NS13.sub1.a[3:0]
+main.NS13.sub1.b[3:0]
+main.NS13.sub1.f[3:0]

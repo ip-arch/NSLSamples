@@ -1,0 +1,28 @@
+declare NS16 {
+  input a[4];
+  output f[4];
+  func_in do(a);
+}
+
+module NS16 {
+  reg r1[4],r2[4],r3[4];
+
+  proc_name p1(r1);
+  proc_name p2(r2);
+  proc_name p3(r3);
+
+  func do {
+	p1(a);
+  }
+
+  proc p1 {
+       p2(r1);
+  }
+  proc p2 {
+       p3(r2);
+  }
+  proc p3 {
+       f = r3;
+       finish;
+  }
+}

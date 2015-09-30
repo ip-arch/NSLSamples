@@ -1,0 +1,42 @@
+declare tut7 simulation {}
+
+declare fadd4 {
+        input a[4];
+        input b[4];
+        input ci;
+        output q[4];
+        output c;
+        output o;
+        func_in ex(a,b,ci) : q;
+}
+
+struct byte_nibble {
+        hi[4];
+        lo[4];
+} ;
+
+module tut7 {
+        byte_nibble reg count = 0 ;
+        fadd4 sm[2];
+
+        count++;
+        if(count>60) {
+                byte_nibble wire res;
+                res.lo=sm[0].ex(count.lo,count.lo,0);
+                res.hi=sm[1].ex(count.hi,count.hi,sm[0].c);
+                _display("count:%d, res:%d, ovf:%d", count, res,sm[1].o);
+        }
+        if(count==70) _finish("bye");
+}
+
+module fadd4 {
+        func ex {
+                wire qs[4],qe[2];
+                qs = {0b0,3'(a)} + {0b0,3'(b)} + 4'(ci);
+                qe = (2'(a[3])+2'(b[3])+2'(qs[3]));
+                c = qe[1];
+                o = qe[1] ^ qs[3];
+                return {qe[0],3'(qs)};
+        }
+}
+

@@ -1,0 +1,9 @@
+declare NS05 {
+  input a,b;
+  output f,g;
+}
+
+module NS05 {
+     f = a & b;
+     g = a | b;
+}

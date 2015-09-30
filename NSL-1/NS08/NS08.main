@@ -1,0 +1,15 @@
+module main;
+ reg [2:0] in;
+ wire f;
+ NS08 NS08(.p_reset(p_reset),.m_clock(m_clock),.b(in[1]),.a(in[0]),.f(f));
+
+ initial begin
+  $dumpfile("NS08.vcd");
+  $dumpvars;
+  for(in=0;in<4;in=in+1)
+   begin
+    #1 $display("a:%d, b:%d, c:%d, d:%d, f:%d", in[0],in[1],NS08.c,NS08.d,f);
+   end
+   #1 $finish;
+ end
+endmodule

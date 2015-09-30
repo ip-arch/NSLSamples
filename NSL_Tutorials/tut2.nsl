@@ -1,0 +1,15 @@
+declare tut2 simulation { } 
+ 
+module tut2 { 
+   reg count[5]=0; 
+   wire x[5],y[5]; 
+   any { 
+       count < 10 : { 
+               _display("x=%d,y=%d,count=%d",x,y,count); 
+               count := x; 
+               y = x + 1; 
+               x = count + 1; 
+               } 
+       count >= 10:    _finish("End"); 
+   } 
+} 

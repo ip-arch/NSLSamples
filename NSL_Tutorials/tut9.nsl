@@ -1,0 +1,64 @@
+#define ADD 0 
+#define LD  1 
+#define ST  2 
+#define JMP 3 
+#define JZ  4 
+  
+declare cpu { 
+    inout data[8]; 
+    output address[8]; 
+    func_out mread(address) : data; 
+    func_out mwrite(address,data); 
+} 
+  
+module cpu { 
+    reg count[8]=0, pc[8], op[8], im[8], acc[8]=0; 
+    proc_name ift(pc), imm(op), exe(im); 
+  
+    any { 
+        count <=20: count++; 
+        count == 10: ift(0); 
+    } 
+  
+    proc ift { 
+        imm(mread(pc++)); 
+    } 
+  
+    proc imm { 
+        exe(mread(pc++)); 
+    } 
+  
+    proc exe { 
+        wire nextpc[8]; 
+        any { 
+            op == ADD: {acc:=acc+im;  _display("ADD %d",im);}
+            op == LD:  {acc:=mread(im); _display("LD %d",im);}
+            op == ST:  {mwrite(im,acc); _display("ST %d",im);}
+        } 
+        any { 
+            op == JMP: {nextpc=im; _display("JMP %d",im);}
+            (op == JZ) && (acc == 0): {nextpc=im; _display("JZ %d",im);}
+            else: nextpc=pc; 
+        } 
+        ift(nextpc); 
+    } 
+} 
+  
+declare tut9 simulation {} 
+  
+module tut9 { 
+    mem mainmem[256][8] = {ADD, 2, JZ, 10, ST, 32, ADD, -1, JMP, 2, ST, 255}; 
+    cpu tut9cpu; 
+  
+    func tut9cpu.mread { 
+        _display("READ: ADDRESS:%x, DATA:%x", tut9cpu.address, mainmem[tut9cpu.address]); 
+        return mainmem[tut9cpu.address]; 
+    } 
+  
+    func tut9cpu.mwrite { 
+        _display("WRITE: ADDRESS:%x, DATA:%x", tut9cpu.address, tut9cpu.data); 
+        mainmem[tut9cpu.address] := tut9cpu.data; 
+        if(tut9cpu.address == 255) _finish("SIM STOP"); 
+    } 
+} 
+  

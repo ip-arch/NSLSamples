@@ -1,0 +1,16 @@
+module main;
+ reg [2:0] in;
+ wire f;
+ NS09 NS09(.p_reset(p_reset),.m_clock(m_clock),.b(in[1]),.a(in[0]),.f(f));
+
+ initial begin
+  $dumpfile("NS09.vcd");
+  $dumpvars;
+  for(in=0;in<4;in=in+1)
+   begin
+    #1 $display("a:%d, b:%d, do:%d, c:%d, f:%d",
+         in[0],in[1],NS09.do,NS09.c,f);
+   end
+   #1 $finish;
+ end
+endmodule

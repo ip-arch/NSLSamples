@@ -1,0 +1,793 @@
+// SN/X v1.5  by Naohiko Shimizu, IP ARCH, Inc.
+// Copyright (c) 2010 IP ARCH, Inc. All rights reserved.
+
+
+
+#define ADD 0
+#define AND 1
+#define SLT 3
+#define NOT 4
+#define SR  6
+#define HLT 7
+
+#define LD  0x8
+#define ST  0x9
+#define LDA 0xa
+#define BZ  0xe
+#define BAL 0xf
+
+#define destHLT	0b1100
+#define destST	0b1101
+#define destBZ	0b1110
+
+struct SNX_itype {
+	op[4];
+	r1[2];
+	r2[2];
+	I[8];
+	};
+
+struct SNX_rtype {
+	op[4];
+	r2[2];
+	r3[2];
+	r1[2];
+	fn[6];
+	};
+
+struct ReorderBufferEntry {
+	Busy;
+	Qi;
+	Op[4];
+	Vi[16];
+	Dest[4];
+	Npc[16];
+	Ia[16];
+	Target[16];
+	};
+
+declare ReorderBuffer {
+	output	Id[5];
+	func_out Ready(Id);
+	input	iId[5];
+	input	iOp[4];
+	input	iDest[4];
+	input	iNpc[16];
+	input	iIa[16];
+	func_in	Insert(iId,iOp,iDest,iNpc,iIa);
+	input	rId[5];
+	input	rVi[16];
+	func_in	Result(rId,rVi);
+	input	bId[5];
+	input	bTarget[16];
+	func_in	Target(bId,bTarget);
+	output	xvalid;
+	input	xId[5];
+	output	xVal[16];
+	func_in	xQuery(xId) : xvalid;
+	output	yvalid;
+	input	yId[5];
+	output	yVal[16];
+	func_in	yQuery(yId) : yvalid;
+	output	cId[5];
+	output	cOp[4];
+	output	cVi[16];
+	output	cDest[4];
+	output	cNpc[16];
+	output	cIa[16];
+	output	cTarget[16];
+	func_out	CommitReq(cId,cOp,cVi,cDest,cNpc,cIa,cTarget);
+	input	aId[5];
+	func_in	CommitAck(aId);
+	func_in	flush();
+}
+
+module ReorderBuffer {
+	ReorderBufferEntry reg r0=0,r1=0,r2=0,r3=0,r4=0,r5=0,r6=0,r7=0;
+	reg	comPointer[3]=0, insPointer[3]=0;
+
+	any {
+	insPointer==0: {if(!r0.Busy) Ready(0b10000);}
+	insPointer==1: {if(!r1.Busy) Ready(0b10001);}
+	insPointer==2: {if(!r2.Busy) Ready(0b10010);}
+	insPointer==3: {if(!r3.Busy) Ready(0b10011);}
+	insPointer==4: {if(!r4.Busy) Ready(0b10100);}
+	insPointer==5: {if(!r5.Busy) Ready(0b10101);}
+	insPointer==6: {if(!r6.Busy) Ready(0b10110);}
+	insPointer==7: {if(!r7.Busy) Ready(0b10111);}
+	}
+
+	any {
+	comPointer==0: {if(r0.Busy&&!r0.Qi) CommitReq(0b10000,r0.Op,r0.Vi,r0.Dest,r0.Npc,r0.Ia,r0.Target);}
+	comPointer==1: {if(r1.Busy&&!r1.Qi) CommitReq(0b10001,r1.Op,r1.Vi,r1.Dest,r1.Npc,r1.Ia,r1.Target);}
+	comPointer==2: {if(r2.Busy&&!r2.Qi) CommitReq(0b10010,r2.Op,r2.Vi,r2.Dest,r2.Npc,r2.Ia,r2.Target);}
+	comPointer==3: {if(r3.Busy&&!r3.Qi) CommitReq(0b10011,r3.Op,r3.Vi,r3.Dest,r3.Npc,r3.Ia,r3.Target);}
+	comPointer==4: {if(r4.Busy&&!r4.Qi) CommitReq(0b10100,r4.Op,r4.Vi,r4.Dest,r4.Npc,r4.Ia,r4.Target);}
+	comPointer==5: {if(r5.Busy&&!r5.Qi) CommitReq(0b10101,r5.Op,r5.Vi,r5.Dest,r5.Npc,r5.Ia,r5.Target);}
+	comPointer==6: {if(r6.Busy&&!r6.Qi) CommitReq(0b10110,r6.Op,r6.Vi,r6.Dest,r6.Npc,r6.Ia,r6.Target);}
+	comPointer==7: {if(r7.Busy&&!r7.Qi) CommitReq(0b10111,r7.Op,r7.Vi,r7.Dest,r7.Npc,r7.Ia,r7.Target);}
+	}
+
+	func Insert if(!flush) {
+		insPointer++;
+		any {
+		iId==0b10000: {r0.Busy:=1; r0.Op:=iOp; r0.Qi:=1; r0.Dest:=iDest; r0.Npc:=iNpc; r0.Ia:=iIa; }
+		iId==0b10001: {r1.Busy:=1; r1.Op:=iOp; r1.Qi:=1; r1.Dest:=iDest; r1.Npc:=iNpc; r1.Ia:=iIa; }
+		iId==0b10010: {r2.Busy:=1; r2.Op:=iOp; r2.Qi:=1; r2.Dest:=iDest; r2.Npc:=iNpc; r2.Ia:=iIa; }
+		iId==0b10011: {r3.Busy:=1; r3.Op:=iOp; r3.Qi:=1; r3.Dest:=iDest; r3.Npc:=iNpc; r3.Ia:=iIa; }
+		iId==0b10100: {r4.Busy:=1; r4.Op:=iOp; r4.Qi:=1; r4.Dest:=iDest; r4.Npc:=iNpc; r4.Ia:=iIa; }
+		iId==0b10101: {r5.Busy:=1; r5.Op:=iOp; r5.Qi:=1; r5.Dest:=iDest; r5.Npc:=iNpc; r5.Ia:=iIa; }
+		iId==0b10110: {r6.Busy:=1; r6.Op:=iOp; r6.Qi:=1; r6.Dest:=iDest; r6.Npc:=iNpc; r6.Ia:=iIa; }
+		iId==0b10111: {r7.Busy:=1; r7.Op:=iOp; r7.Qi:=1; r7.Dest:=iDest; r7.Npc:=iNpc; r7.Ia:=iIa; }
+		}
+	}
+
+	func Result if(!flush) any {
+		rId==0b10000: {r0.Qi:=0; r0.Vi:=rVi;}
+		rId==0b10001: {r1.Qi:=0; r1.Vi:=rVi;}
+		rId==0b10010: {r2.Qi:=0; r2.Vi:=rVi;}
+		rId==0b10011: {r3.Qi:=0; r3.Vi:=rVi;}
+		rId==0b10100: {r4.Qi:=0; r4.Vi:=rVi;}
+		rId==0b10101: {r5.Qi:=0; r5.Vi:=rVi;}
+		rId==0b10110: {r6.Qi:=0; r6.Vi:=rVi;}
+		rId==0b10111: {r7.Qi:=0; r7.Vi:=rVi;}
+	}
+
+	func Target if(!flush) any {
+		bId==0b10000: {r0.Target:=bTarget;}
+		bId==0b10001: {r1.Target:=bTarget;}
+		bId==0b10010: {r2.Target:=bTarget;}
+		bId==0b10011: {r3.Target:=bTarget;}
+		bId==0b10100: {r4.Target:=bTarget;}
+		bId==0b10101: {r5.Target:=bTarget;}
+		bId==0b10110: {r6.Target:=bTarget;}
+		bId==0b10111: {r7.Target:=bTarget;}
+	}
+
+	func xQuery if(Result&&rId==xId) {xVal=rVi; return 0;}
+		else any {
+		xId==0b10000: {xVal=r0.Vi; return r0.Qi;}
+		xId==0b10001: {xVal=r1.Vi; return r1.Qi;}
+		xId==0b10010: {xVal=r2.Vi; return r2.Qi;}
+		xId==0b10011: {xVal=r3.Vi; return r3.Qi;}
+		xId==0b10100: {xVal=r4.Vi; return r4.Qi;}
+		xId==0b10101: {xVal=r5.Vi; return r5.Qi;}
+		xId==0b10110: {xVal=r6.Vi; return r6.Qi;}
+		xId==0b10111: {xVal=r7.Vi; return r7.Qi;}
+	}
+	func yQuery  if(Result&&rId==yId) {yVal=rVi; return 0;}
+		else any {
+		yId==0b10000: {yVal=r0.Vi; return r0.Qi;}
+		yId==0b10001: {yVal=r1.Vi; return r1.Qi;}
+		yId==0b10010: {yVal=r2.Vi; return r2.Qi;}
+		yId==0b10011: {yVal=r3.Vi; return r3.Qi;}
+		yId==0b10100: {yVal=r4.Vi; return r4.Qi;}
+		yId==0b10101: {yVal=r5.Vi; return r5.Qi;}
+		yId==0b10110: {yVal=r6.Vi; return r6.Qi;}
+		yId==0b10111: {yVal=r7.Vi; return r7.Qi;}
+	}
+
+	func CommitAck if(!flush) {
+		comPointer++;
+		any {
+		aId==0b10000: {r0:=0;}
+		aId==0b10001: {r1:=0;}
+		aId==0b10010: {r2:=0;}
+		aId==0b10011: {r3:=0;}
+		aId==0b10100: {r4:=0;}
+		aId==0b10101: {r5:=0;}
+		aId==0b10110: {r6:=0;}
+		aId==0b10111: {r7:=0;}
+		}
+	}
+	func	flush {
+		comPointer:=0;
+		insPointer:=0;
+		r0:=0; r1:=0; r2:=0; r3:=0;
+		r4:=0; r5:=0; r6:=0; r7:=0;
+	}
+}
+
+struct ReservationStationEntry {
+	Busy;
+	Op[4];
+	Dest[5];
+	Qi[5]; Qj[5];
+	Vi[16]; Vj[16];
+	};
+
+declare ReservationStation {
+	func_out	Ready();
+	input	Op[4];
+	input	Dest[5];
+	input	Qi[5],	Qj[5];
+	input	Vi[16],	Vj[16];
+	func_in	Insert(Op,Dest,Qi,Qj,Vi,Vj);
+	input	cId[5];
+	input	cVal[16];
+	func_in	CDBin(cId,cVal);
+	output	oOp[4];
+	output	oDest[5];
+	output	oVi[16],	oVj[16];
+	func_out	OutReq(oOp,oDest,oVi,oVj);
+	func_in	OutAck();
+	func_in	flush();
+}
+
+module ReservationStation {
+	ReservationStationEntry reg s0=0,s1=0;
+
+	if(!s0.Busy || !s1.Busy) Ready();
+
+	alt {
+	s0.Busy && s0.Qi==0 && s0.Qj==0: { OutReq(s0.Op,s0.Dest,s0.Vi,s0.Vj); }
+	s1.Busy && s1.Qi==0 && s1.Qj==0: { OutReq(s1.Op,s1.Dest,s1.Vi,s1.Vj); }
+	}
+
+	func OutAck if(!flush) alt {
+	s0.Busy && s0.Qi==0 && s0.Qj==0: { s0.Busy:=0; }
+	s1.Busy && s1.Qi==0 && s1.Qj==0: { s1.Busy:=0; }
+	}
+
+	func Insert if(!flush) {
+	wire InsQi[5],InsQj[5],InsVi[16],InsVj[16];
+	InsQi=if(CDBin && cId==Qi) 5'b0 else Qi;
+	InsQj=if(CDBin && cId==Qj) 5'b0 else Qj;
+	InsVi=if(CDBin && cId==Qi) cVal else Vi;
+	InsVj=if(CDBin && cId==Qj) (if(Op[3]) Vj else 16'b0) + cVal else Vj;
+		alt {
+		!s0.Busy: { s0.Busy:=1; s0.Op:=Op; s0.Dest:=Dest; s0.Qi:=InsQi; s0.Qj:=InsQj; s0.Vi:=InsVi; s0.Vj:=InsVj;}
+		!s1.Busy: { s1.Busy:=1; s1.Op:=Op; s1.Dest:=Dest; s1.Qi:=InsQi; s1.Qj:=InsQj; s1.Vi:=InsVi; s1.Vj:=InsVj;}
+		}
+	}
+
+	func	CDBin	if(!flush) any {
+	s0.Busy && s0.Qi==cId: {s0.Vi:=cVal; s0.Qi:=0; }
+	s0.Busy && s0.Qj==cId: {s0.Vj:=cVal+if(s0.Op[3]) s0.Vj else 16'b0; s0.Qj:=0; }
+	s1.Busy && s1.Qi==cId: {s1.Vi:=cVal; s1.Qi:=0; }
+	s1.Busy && s1.Qj==cId: {s1.Vj:=cVal+if(s1.Op[3]) s1.Vj else 16'b0; s1.Qj:=0; }
+	}
+	func	flush {
+		s0:=0; s1:=0;
+	}
+}
+
+declare ReservationStationInOrder {
+	func_out	Ready();
+	input	Op[4];
+	input	Dest[5];
+	input	Qi[5],	Qj[5];
+	input	Vi[16],	Vj[16];
+	func_in	Insert(Op,Dest,Qi,Qj,Vi,Vj);
+	input	cId[5];
+	input	cVal[16];
+	func_in	CDBin(cId,cVal);
+	output	oOp[4];
+	output	oDest[5];
+	output	oVi[16],	oVj[16];
+	func_out	OutReq(oOp,oDest,oVi,oVj);
+	func_in	OutAck();
+	func_in	flush();
+}
+
+module ReservationStationInOrder {
+	ReservationStationEntry reg s0=0,s1=0;
+	reg OrderI=0, OrderO=0;
+
+	if((~s0.Busy&~OrderI) || (~s1.Busy&OrderI)) Ready();
+
+	any {
+	~OrderO && s0.Busy && s0.Qi==0 && s0.Qj==0: { OutReq(s0.Op,s0.Dest,s0.Vi,s0.Vj); }
+	OrderO && s1.Busy && s1.Qi==0 && s1.Qj==0: { OutReq(s1.Op,s1.Dest,s1.Vi,s1.Vj); }
+	}
+
+	func OutAck if(!flush) {
+		OrderO:=~OrderO;
+		any {
+			~OrderO && s0.Busy && s0.Qi==0 && s0.Qj==0: { s0.Busy:=0;}
+			OrderO && s1.Busy && s1.Qi==0 && s1.Qj==0: { s1.Busy:=0; }
+		}
+	}
+
+	func Insert if(!flush) {
+	wire InsQi[5],InsQj[5],InsVi[16],InsVj[16];
+	InsQi=if(CDBin && cId==Qi) 5'b0 else Qi;
+	InsQj=if(CDBin && cId==Qj) 5'b0 else Qj;
+	InsVi=if(CDBin && cId==Qi) cVal else Vi;
+	OrderI:=~OrderI;
+	InsVj=if(CDBin && cId==Qj) (if(Op[3]) Vj else 16'b0) + cVal else Vj;
+		any {
+		~OrderI && !s0.Busy: { s0.Busy:=1; s0.Op:=Op; s0.Dest:=Dest; s0.Qi:=InsQi; s0.Qj:=InsQj; s0.Vi:=InsVi; s0.Vj:=InsVj;}
+		OrderI && !s1.Busy: { s1.Busy:=1; s1.Op:=Op; s1.Dest:=Dest; s1.Qi:=InsQi; s1.Qj:=InsQj; s1.Vi:=InsVi; s1.Vj:=InsVj;}
+		}
+	}
+
+	func	CDBin	if(!flush) any {
+	s0.Busy && s0.Qi==cId: {s0.Vi:=cVal; s0.Qi:=0; }
+	s0.Busy && s0.Qj==cId: {s0.Vj:=cVal+if(s0.Op[3]) s0.Vj else 16'b0; s0.Qj:=0; }
+	s1.Busy && s1.Qi==cId: {s1.Vi:=cVal; s1.Qi:=0; }
+	s1.Busy && s1.Qj==cId: {s1.Vj:=cVal+if(s1.Op[3]) s1.Vj else 16'b0; s1.Qj:=0; }
+	}
+	func	flush {
+		s0:=0; s1:=0;
+		OrderI:=0; OrderO:=0;
+	}
+}
+
+struct RegisterFileEntry {
+	Busy;
+	Qi[5];
+	};
+
+declare RegisterFile {
+	input	RegNumberA[2];
+	output	ReorderA[5];
+	func_in	inquireA(RegNumberA):ReorderA;
+	input	RegNumberB[2];
+	output	ReorderB[5];
+	func_in	inquireB(RegNumberB):ReorderB;
+	input	RegNumberD[2];
+	input	ReorderD[5];
+	func_in	Issue(RegNumberD,ReorderD);
+	input	RegNumberC[2];
+	input	ReorderC[5];
+	func_in	Commit(RegNumberC,ReorderC);
+	func_in flush();
+}
+
+module RegisterFile {
+	RegisterFileEntry reg r0=0,r1=0,r2=0,r3=0;
+	func inquireA any {
+		RegNumberA==0: { if(Commit && RegNumberC==RegNumberA && ReorderC==r0.Qi) return 0; else return r0.Qi; }
+		RegNumberA==1: { if(Commit && RegNumberC==RegNumberA && ReorderC==r1.Qi) return 0; else return r1.Qi; }
+		RegNumberA==2: { if(Commit && RegNumberC==RegNumberA && ReorderC==r2.Qi) return 0; else return r2.Qi; }
+		RegNumberA==3: { if(Commit && RegNumberC==RegNumberA && ReorderC==r3.Qi) return 0; else return r3.Qi; }
+	}
+	func inquireB any {
+		RegNumberB==0: { if(Commit && RegNumberC==RegNumberB && ReorderC==r0.Qi) return 0; else return r0.Qi; }
+		RegNumberB==1: { if(Commit && RegNumberC==RegNumberB && ReorderC==r1.Qi) return 0; else return r1.Qi; }
+		RegNumberB==2: { if(Commit && RegNumberC==RegNumberB && ReorderC==r2.Qi) return 0; else return r2.Qi; }
+		RegNumberB==3: { if(Commit && RegNumberC==RegNumberB && ReorderC==r3.Qi) return 0; else return r3.Qi; }
+	}
+	func Issue any {
+		RegNumberD==0: { r0.Qi := ReorderD; r0.Busy:=1; }
+		RegNumberD==1: { r1.Qi := ReorderD; r1.Busy:=1; }
+		RegNumberD==2: { r2.Qi := ReorderD; r2.Busy:=1; }
+		RegNumberD==3: { r3.Qi := ReorderD; r3.Busy:=1; }
+	}
+	func Commit if(!flush&&!(Issue&&RegNumberD==RegNumberC)) any {
+		RegNumberC==0&&ReorderC==r0.Qi: { r0.Qi := 0; r0.Busy:=0; }
+		RegNumberC==1&&ReorderC==r1.Qi: { r1.Qi := 0; r1.Busy:=0; }
+		RegNumberC==2&&ReorderC==r2.Qi: { r2.Qi := 0; r2.Busy:=0; }
+		RegNumberC==3&&ReorderC==r3.Qi: { r3.Qi := 0; r3.Busy:=0; }
+	}
+	func flush {
+		r0:=0; r1:=0; r2:=0; r3:=0;
+	}
+}
+
+struct StoreBufferEntry {
+	valid;
+	BA[16];
+	BD[16];
+};
+
+declare StoreBuffer {
+	input	writeDat[16];
+	input	writeAdr[16];
+	func_in	write(writeAdr,writeDat);
+	output	Dat[16];
+	input	qAdr[16];
+	output	Hit;
+	func_in	query(qAdr):Hit;
+	func_out	Busy();
+	input	fAdr[16];
+	func_in	flush(fAdr);
+	func_in	flusha();
+}
+
+module StoreBuffer {
+	StoreBufferEntry reg st0=0, st1=0;
+	if(st0.valid&&st1.valid) Busy();
+
+	func write if(!flusha) alt {
+		!st0.valid && !(flush&&fAdr==st0.BA): {
+		st0.BA:=writeAdr;
+		st0.BD:=writeDat;
+		st0.valid := 1;
+		}
+		!st1.valid && !(flush&&fAdr==st1.BA): {
+		st1.BA:=writeAdr;
+		st1.BD:=writeDat;
+		st1.valid := 1;
+		}
+	}
+	func query any {
+		(st0.valid&&st0.BA==qAdr): {
+			Hit=1;
+			Dat=st0.BD;
+		}
+		(st1.valid&&st1.BA==qAdr): {
+			Hit=1;
+			Dat=st1.BD;
+		}
+		write&&qAdr==writeAdr: {
+			Hit=1;
+			Dat=writeDat;
+		}
+		else: Hit = 0;
+	}
+	func flush if(!flusha) {
+		if(fAdr==st0.BA)	st0.valid:=0;
+		if(fAdr==st1.BA)	st1.valid:=0;
+	}
+	func flusha {
+		st0.valid:=0;
+		st1.valid:=0;
+	}
+}
+		
+	
+/* SNX class comment body */
+declare	snx  {
+	
+	// -- snx  --
+	input	inst[16];
+	input	datai[16];
+	output	datao[16];
+	output	iadrs[16];
+	output	adrs[16];
+	
+	// -- snx  --
+	func_out	inst_read(iadrs):inst;
+	func_out	inst_write(iadrs);
+	func_out	memory_read(adrs):datai;
+	func_out	memory_write(adrs,datao);
+	func_out	wb();
+	func_out	hlt();
+}
+
+declare	alu16  {
+	
+	// -- alu16  --
+	input	a[16];
+	input	b[16];
+	input	f[3];
+	output	q[16];
+	
+	// -- alu16  --
+	func_in	exe(f,a,b):q;
+
+}
+
+declare	cla16  {
+	
+	// -- cla16  --
+	input	cin;
+	input	in1[16];
+	input	in2[16];
+	output	q[16];
+	
+	// -- cla16  --
+	func_in	exe(cin,in1,in2):q;
+
+}
+
+declare	reg4  {
+	
+	// -- reg4  --
+	input	regin[16];
+	output	regouta[16];
+	output	regoutb[16];
+	input	n_regin[2];
+	input	n_regouta[2];
+	input	n_regoutb[2];
+	
+	// -- reg4  --
+	func_in	write(n_regin,regin);
+	func_in	reada(n_regouta):regouta;
+	func_in	readb(n_regoutb):regoutb;
+
+}
+
+declare	inc16  {
+	
+	// -- inc16  --
+	input	a[16];
+	output	q[16];
+	
+	// -- inc16  --
+	func_in	exe(a):q;
+
+}
+module	snx {
+	
+	// -- snx  --
+	alu16	alu;
+	reg4	gr;
+	inc16	inc;
+	reg	pc[16],npc[16];
+	ReorderBuffer	rb;
+	RegisterFile	rf;
+	ReservationStation	alurs, brs;
+	ReservationStationInOrder	ldstrs;
+	StoreBuffer	stBuf;
+	SNX_rtype reg opreg ;
+	reg	mar[16];
+	reg	mdr[16];
+	reg	loadID[5];
+	wire	loadDat[16];
+	func_self	start(), stall(), suspend();
+	func_self	itype(), allflush();
+	func_self	mloadReady(loadDat), mstoreRun();
+	func_self	CDBload();
+	reg	st0=0,st1,st2;
+	proc_name	ifetch (pc);
+	proc_name	exec (opreg,npc);
+	proc_name	mstore (mdr,mar);
+	proc_name	mload (loadID,mar);
+	
+	/* common operations */
+	{
+	st0:=1; st1:=st0; st2:=st1;
+	if(~st2&st1) start();
+	}
+	func allflush	 {
+		stall(); suspend();
+		rb.flush(); rf.flush(); ldstrs.flush(); brs.flush(); alurs.flush(); stBuf.flusha();
+	}
+	
+	/* func_in start() operation */
+	func	start {
+		ifetch(0x0000);
+	}
+
+	func	mloadReady {
+			rb.Result(loadID,loadDat);
+			alurs.CDBin(loadID,loadDat);
+			brs.CDBin(loadID,loadDat);
+			ldstrs.CDBin(loadID,loadDat);
+	}
+	func	ldstrs.OutReq if(!brs.OutReq) any {
+		(!mloadReady && ldstrs.oOp==LD): any {
+			stBuf.query(ldstrs.oVj): {
+				CDBload();
+				rb.Result(ldstrs.oDest,stBuf.Dat);
+				alurs.CDBin(ldstrs.oDest,stBuf.Dat);
+				brs.CDBin(ldstrs.oDest,stBuf.Dat);
+				ldstrs.CDBin(ldstrs.oDest,stBuf.Dat);
+				ldstrs.OutAck();
+				}
+			else: {
+				if(!mstoreRun) {
+					mload(ldstrs.oDest, ldstrs.oVj);
+					ldstrs.OutAck();
+				}
+			}
+		}
+		!mloadReady && (ldstrs.oOp==ST) && !brs.OutReq && !alurs.OutReq && !stBuf.Busy: {
+			stBuf.write(ldstrs.oVj,ldstrs.oVi);
+			rb.Result(ldstrs.oDest,ldstrs.oVi);
+			rb.Target(ldstrs.oDest,ldstrs.oVj);
+			ldstrs.OutAck();
+		}
+	}
+	func	brs.OutReq {
+		if(!mloadReady) {
+			rb.Result(brs.oDest,brs.oVi);
+			rb.Target(brs.oDest,brs.oVj);
+			if(brs.oOp==BAL) {
+				ldstrs.CDBin(brs.oDest,brs.oVi);
+				brs.CDBin(brs.oDest,brs.oVi);
+				alurs.CDBin(brs.oDest,brs.oVi);
+			}
+			brs.OutAck();
+			}
+		}
+	func	alurs.OutReq {
+		wire result[16];
+		if(!mloadReady && !CDBload && !brs.OutReq) {
+			if(alurs.oOp==LDA) {
+				result= alurs.oVj;
+			}
+			else {
+				result=alu.exe(3'(alurs.oOp),alurs.oVi, alurs.oVj);
+			}
+			rb.Result(alurs.oDest,result);
+			ldstrs.CDBin(alurs.oDest,result);
+			brs.CDBin(alurs.oDest,result);
+			alurs.CDBin(alurs.oDest,result);
+			alurs.OutAck();
+		}
+	}
+
+	func rb.CommitReq {
+		rf.Commit(rb.cDest[1:0],rb.cId);
+		if(rb.cDest[3:2]==0b00) gr.write(rb.cDest[1:0],rb.cVi);
+		any {
+		rb.cOp==HLT: { allflush(); stall(); suspend(); ifetch.finish(); exec.finish(); mload.finish(); hlt();}
+		rb.cOp==BAL && rb.cIa!=rb.cTarget: { allflush(); stall(); suspend(); exec.finish(); ifetch(rb.cTarget);}
+		rb.cOp==BZ && rb.cVi==0 && rb.cIa!=rb.cTarget: { allflush(); stall(); suspend(); exec.finish(); ifetch(rb.cTarget);}
+		rb.cOp==BZ && rb.cVi!=0 && rb.cIa!=rb.cNpc: { allflush(); stall(); suspend(); exec.finish(); ifetch(rb.cNpc);}
+		rb.cOp==ST: { mstore(rb.cVi, rb.cTarget); stBuf.flush(rb.cTarget); mstoreRun();}
+		}
+		rb.CommitAck(rb.cId);
+	}
+
+	/* proc ifetch(pc) operation */
+	proc	ifetch {
+		if(!stall) {
+			ifetch(inc.exe(pc));
+			exec(inst_read(pc),inc.q);
+		}
+	}
+		
+	/* proc exec(opreg) operation */
+	proc	exec {
+		SNX_itype wire  opitype;
+		wire	opr1[16];
+		wire	opr2[16];
+		wire	ea[16];
+		wire	rp1[5],rp2[5];
+		wire	op1[5],op2[5],op2I[5];
+		wire	aluq[16];
+
+		if(!suspend) {
+		opitype = opreg;
+		if(opreg.op[3]) itype();
+		rp1=rf.inquireA(opreg.r2);
+		rp2=rf.inquireB(opreg.r3);
+		any {
+		!rp1: {op1=0; opr1 = gr.reada(opreg.r2);}
+		rp1&&rb.xQuery(rp1): {op1=rp1; opr1 = 0xa5a5;}
+		rp1&&!rb.xvalid: {op1=0; opr1 = rb.xVal;}
+		}
+		any {
+		!rp2: {op2=0; opr2 = gr.readb(opreg.r3);}
+		rp2&&rb.yQuery(rp2): {op2=rp2; opr2 = 0x5a5a;}
+		rp2&&!rb.yvalid: {op2=0; opr2 = rb.yVal;}
+		}
+		ea = (if(opitype.r2==0 || op2!=0) 16'b0 else opr2) + 16#opitype.I;
+		op2I = if(opitype.r2==0) 5'b0 else op2;
+		if (rb.Ready )  {
+			any {
+			opreg.op==HLT: {
+				rb.Insert(rb.Id, opreg.op, destHLT, npc, pc);
+				alurs.Insert(opreg.op, rb.Id, 0, 0, opr1, opr2);
+				stall();
+				finish();
+				}
+			!itype&&opreg.op!=HLT&&alurs.Ready: {
+				rb.Insert(rb.Id, opreg.op, {0b00,opreg.r1}, npc, pc);
+				alurs.Insert(opreg.op, rb.Id, op1, if(opreg.op==NOT || opreg.op==SR) 5'b0 else op2, opr1, opr2);
+				rf.Issue(opreg.r1,rb.Id);
+				finish();
+				}
+			opitype.op==LDA&&alurs.Ready: {
+				rb.Insert(rb.Id, opreg.op, {0b00,opitype.r1}, npc, pc);
+				alurs.Insert(opitype.op, rb.Id, 0, op2I, 0, ea);
+				rf.Issue(opitype.r1,rb.Id);
+				finish();
+				}
+			opitype.op==LD&&ldstrs.Ready: {
+				rb.Insert(rb.Id, opreg.op, {0b00,opitype.r1}, npc, pc);
+				ldstrs.Insert(opreg.op, rb.Id, 0, op2I, 0, ea);
+				rf.Issue(opitype.r1,rb.Id);
+				finish();
+				}
+			opitype.op==ST&&ldstrs.Ready: {
+				rb.Insert(rb.Id, opreg.op, destST, npc, pc);
+				ldstrs.Insert(opreg.op, rb.Id, op1, op2I, opr1, ea);
+				finish();
+				}
+			opitype.op==BZ&&brs.Ready: {
+				rb.Insert(rb.Id, opreg.op, destBZ, npc, pc);
+				brs.Insert(opreg.op, rb.Id, op1, op2I, opr1, ea);
+				finish();
+				}
+			opitype.op==BAL&&brs.Ready: {
+				rb.Insert(rb.Id, opreg.op, {0b00,opitype.r1}, npc, pc);
+				brs.Insert(opreg.op, rb.Id, 0, op2I, npc, ea);
+				rf.Issue(opitype.r1,rb.Id);
+				finish();
+				}
+			else: stall();
+			}
+		}
+		else stall();
+		}
+	}
+		
+	/* proc mstore(mdr,mar) operation */
+	proc	mstore {
+		memory_write(mar,mdr);
+		finish();
+	}
+		
+	/* proc mload(loadID,mar) operation */
+	proc	mload {
+		mloadReady( memory_read(mar) );
+		finish();
+	}
+		
+}
+module	alu16 {
+	cla16	cla;
+	
+	/* common operations */
+	{
+	
+	}
+
+	
+	/* func_in exe(f,a,b) operation */
+	func	exe {
+		any {
+			f==ADD: return cla.exe(0b0,a,b);
+			f==AND: return a&b;
+			f==SLT: return 16'((a[15]&~b[15])|(cla.exe(0b1,a,~b)[15]&~a[15]&~b[15])|(cla.q[15]&a[15]&b[15]));
+			f==NOT: return ~a;
+			f==SR: return {0b0,a[15:1]};
+		}
+	}
+		
+}
+
+module	cla16 {
+	
+	
+	/* func_in exe(cin,in1,in2) operation */
+	func	exe {
+	return in1 + in2 + 16'(cin);
+	}
+		
+}
+
+module	reg4 {
+	
+	// -- reg4  --
+	reg	r0[16];
+	reg	r1[16];
+	reg	r2[16];
+	reg	r3[16];
+		
+	/* func_in write(n_regin,regin) operation */
+	func	write {
+		any {
+			n_regin == 0: r0 := regin;
+			n_regin == 1: r1 := regin;
+			n_regin == 2: r2 := regin;
+			n_regin == 3: r3 := regin;
+		}
+	}
+		
+	/* func_in reada(n_regouta) operation */
+	func	reada if(write&&n_regin==n_regouta) return regin; else {
+		any {
+			n_regouta == 0: return r0;
+			n_regouta == 1: return r1;
+			n_regouta == 2: return r2;
+			n_regouta == 3: return r3;
+		}
+	}
+		
+	/* func_in readb(n_regoutb) operation */
+	func	readb if(write&&n_regin==n_regoutb) return regin; else {
+		any {
+			n_regoutb == 0: return r0;
+			n_regoutb == 1: return r1;
+			n_regoutb == 2: return r2;
+			n_regoutb == 3: return r3;
+		}
+	}
+		
+}
+
+module	inc16 {
+	
+	/* func_in exe(a) operation */
+	func	exe {
+		return a + 0x0001;
+	}
+		
+}

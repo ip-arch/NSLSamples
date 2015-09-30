@@ -1,0 +1,85 @@
+#define ADD 0x0
+#define SUB 0x1
+#define AND 0x2
+#define OR  0x3
+#define XOR 0x4
+#define NOT 0x5
+#define SLT 0x6
+#define MOV 0x7
+
+#define BEQ 0x8
+#define JMP 0x9
+#define LOD 0xa
+#define STO 0xb
+
+#define OPR_ZER  (op[3:0] == 0x0)
+#define OPR_IMM  (op[3:0] == 0x1)
+#define OPR_PC   (op[3:0] == 0x2)
+#define OPR_ACC  (op[3:0] == 0x3)
+#define OPR_MEM  (op[3:0] == 0x4)
+
+#define NEAM op[7:4]
+
+#include "alu8.nsl"
+
+declare m8 {
+ output a[8], d[8];
+ input  i[8];
+ func_in start;
+ func_out mr(a),mw(a,d);
+}
+module m8 {
+
+ reg pc[8], acc[8]=0;
+ reg    op[8], opr[8];
+ alu8  alu;
+
+ proc_name ifetch(pc), decode(op), memory(opr), exec(opr);
+
+ func start {
+	ifetch(0x00);
+ }
+
+ proc ifetch {
+     alu.exe(ADD, pc, 0x01);
+     if(alu.done) {
+	     decode(mr(pc).i);
+	     pc := alu.o;
+     }
+ }
+
+ proc decode {
+   any {
+   OPR_IMM: { alu.exe(ADD, pc, 0x01);
+	      if(alu.done) {
+	          exec(mr(pc).i);
+	          pc := alu.o;
+                  }
+            }
+   OPR_MEM: { alu.exe(ADD, pc, 0x01);
+	      if(alu.done) {
+	          memory(mr(pc).i);
+	          pc := alu.o;
+                  }
+            }
+   OPR_PC : exec(pc);
+   OPR_ACC: exec(acc);
+   OPR_ZER: exec(0x00);
+   }
+ }
+
+ proc memory exec(mr(opr).i);
+ 
+ proc exec {
+   any {
+   NEAM == LOD: {acc  := mr(opr).i; ifetch(pc);}
+   NEAM == STO: {mw(opr,acc); ifetch(pc);}
+   NEAM == JMP: ifetch(opr);
+   NEAM == BEQ: {if(acc == 0x00) ifetch(opr); else ifetch(pc);}
+   else: { alu.exe(NEAM, acc, opr);
+           if(alu.done) {acc := alu.o; ifetch(pc);}
+        }
+   }
+ }
+
+}

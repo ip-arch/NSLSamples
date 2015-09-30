@@ -1,0 +1,17 @@
+declare tut5 simulation { }
+ 
+module tut5 {
+    reg count[8] = 0;
+    func_self  start();
+ 
+    count++;
+    if(count==100) start();
+ 
+    func start seq { 
+        reg loop[8];
+        for(loop:=0,9) {
+             _display("loop = %d, count = %d", loop, count); 
+        }
+        _finish("bye: count = %d", count);
+    }
+}

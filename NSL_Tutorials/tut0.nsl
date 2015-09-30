@@ -1,0 +1,6 @@
+declare tut0 simulation { }
+ 
+module tut0 {
+    _finish("Hello World");
+}
+

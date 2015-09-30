@@ -1,0 +1,31 @@
+declare sub {
+  input a[4],b[4];
+  output f[4];
+  func_in do(a,b);
+  func_out done(f);
+}
+
+module sub {
+  func do {
+	done(a&b);
+  }
+}
+
+declare NS13 {
+  input a[4],b[4];
+  output f[4];
+  func_in do(a,b);
+}
+
+module NS13 {
+
+  sub sub1;
+
+  func do  {
+	sub1.do(a,b);
+  }
+
+  func sub1.done {
+	f=sub1.f;
+  }
+}

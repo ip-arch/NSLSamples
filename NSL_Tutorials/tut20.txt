@@ -1,0 +1,2 @@
+m_clock:tut20.m_clock
+p_reset:tut20.p_reset

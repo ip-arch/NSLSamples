@@ -1,0 +1,15 @@
+declare tut3 simulation { } 
+  
+module tut3 { 
+    wire value[8], ret[8]; 
+  
+  
+    func_self  start(value) : ret; 
+  
+    if(_time>=100) _finish("Value = %d",start(1)); 
+  
+    func start { 
+        return ( value + 3 ); 
+  
+    } 
+} 

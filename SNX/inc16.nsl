@@ -1,0 +1,15 @@
+  
+declare    inc16  { 
+    // -- inc16  -- 
+    input    a[16]; 
+    output    q[16]; 
+    // -- inc16  -- 
+    func_in    exe(a):q; 
+} 
+  
+module    inc16 { 
+        /* func_in exe(a) operation */ 
+    func    exe { 
+        return a + 0x0001; 
+    } 
+} 

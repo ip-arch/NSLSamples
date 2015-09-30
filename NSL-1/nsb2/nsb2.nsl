@@ -1,0 +1,22 @@
+declare nsb2 {
+   input a[8];
+   output f[8];
+   func_in req(a);
+   func_out ack(f);
+}
+module nsb2 {
+   reg  adr[8],d0[8],d1[8],d2[8],d3[8];
+   func req seq {
+      adr := a;
+      d0 := a;
+      d1 := a;
+      d2 := a;
+      d3 := a;
+      ack(adr);
+      f = d0;
+      f = d1;
+      f = d2;
+      f = d3;
+   }
+  }
+

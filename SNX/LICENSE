@@ -1,0 +1,21 @@
+snx.tar.gz: SN/X 16bit RISC CPU Lecture Package
+
+   Copyright (c) 1998-2004 Naohiko Shimizu
+   IP Architecture Laboratory,
+   Email: nshimizu@ip-arch.jp
+   URL: http://www.ip-arch.jp/
+
+   All rights are reserved.
+
+本パッケージは書籍「コンピュータ設計の基礎知識」および、
+パルテノン講習会のために特別に作成した。
+許可無く本パッケージ内のファイルおよびその派生物をこれらにかかる授業、
+演習、自習以外の目的で利用することを禁止する。これらの目的のためには
+著作件表示を残し、本ライセンス条項を添付した状態での再配付ならびに
+改変を許可する。改変したものを配付する場合には改変部分を明記し、
+オリジナルを同時に配付すること。
+
+                                             2004年吉日
+
+                                             清水尚彦
+

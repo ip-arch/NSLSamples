@@ -1,0 +1,8 @@
+declare NS00 {
+   input a[8],b[8];
+   output f[8];
+}
+module NS00 {
+   f={a[7],(a[2:0]&b[7:5]),b[4:2],a[6]};
+  }
+

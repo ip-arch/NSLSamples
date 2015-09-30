@@ -1,0 +1,23 @@
+declare tut10 simulation {} 
+ 
+module tut10 {
+ 
+    state_name state1, state2, state3;
+ 
+ 
+    state state1 {
+        reg c1[2]=0;
+        if(c1++ == 3) goto state2;
+        _display("in state1 %d",c1);
+    }
+    state state2 {
+        reg c2[2]=0;
+        if(c2++ == 3) goto state3;
+        _display("in state2 %d",c2);
+    }
+    state state3 {
+        reg c3[2]=0;
+        if(c3++ == 3) {goto state1; _finish();}
+        _display("in state3 %d",c3);
+    }
+}

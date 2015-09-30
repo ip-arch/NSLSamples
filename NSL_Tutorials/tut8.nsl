@@ -1,0 +1,71 @@
+declare tut8 simulation {} 
+ 
+#define N 10
+#define M 8
+ 
+declare divu_%N%_%M% {
+input A[N],B[M];
+output Q[N],R[M];
+func_in divu_do(A,B);
+func_out divu_done(Q,R);
+func_out divu_error;
+}
+ 
+module divu_%N%_%M% {
+reg QB[M], QQ[N+M];
+wire sub_i1[N+1], sub_i2[N], minus;
+func_self sub(sub_i1,sub_i2);
+ 
+func sub {
+ wire sub_o[N+1];
+  sub_o = {sub_i1} - {0b0,sub_i2};
+  minus=sub_o[N];
+}
+ 
+func divu_do  {
+    if(B==M'b0) divu_error();
+    else seq {
+    reg bitcount[M];
+    for( {bitcount:=0; QB:=B; QQ:={M'b0,A};} ;
+              bitcount < N ; bitcount++) {
+        if(sub(QQ[N+M-1:M-1],(N'(QB)<<(N-M))).minus) {
+         QQ := (QQ << 1) ;
+ 
+        }
+        else {
+         QQ := {(sub_o << 1)[N:N-M],(QQ[N-2:0]<<1)} | (N+M)'b1;
+        }
+         }
+    divu_done(QQ[N-1:0],QQ[(N+M-1):N]);
+    }
+    }
+}
+ 
+module tut8 {
+    divu_%N%_%M%  divid;
+ 
+    reg  a[N], b[M];
+    func_self go();
+    reg count[16]=0;
+ 
+    count++;
+    if(count == 10) go();
+    if(divid.divu_error) _finish("divid error");
+ 
+ 
+    func go seq {
+        label_name wait_res;
+        {
+            a:=N'(_random);
+            b:=M'(_random);
+        }
+        {
+            divid.divu_do(a,b);
+            _display("start %d/%d",a,b);
+        }
+        wait_res:
+        if(!divid.divu_done) goto wait_res;
+        else _display("result = %d : %d",divid.Q, divid.R);
+        _finish();
+    }
+}

@@ -1,0 +1,121 @@
+#define H_DISP_END 0x00FF  /* 256 */
+#define H_FP       0x0105  /* 261 */
+#define H_SYNC     0x012C  /* 300 */
+#define H_END      0x013F  /* 319 */
+#define V_DISP_END 16'd447
+#define V_FP       16'd474 //0x01E9  /* 489 */
+#define V_SYNC     0x01EB  /* 491 */
+#define V_END      0x0208  /* 520 */
+
+#ifdef STANDALONE
+
+declare vga {
+	func_out r,g,b;
+	output h,v;
+	input data[8];
+	output adr[13];
+	func_out mr(adr);
+	func_in  mbusy;
+}
+#endif
+
+
+module vga {
+
+	reg h_dispon=0, v_dispon=0;
+	reg h_sync=0, v_sync=0;
+        reg reqfetcha=1, reqfetchb=1;
+	reg h_count[16]=0, v_count[16]=0;
+        reg    fn[8], fca[8],fcb[8];
+	reg vramadra[16]=0, vramadrb[16]=0, side=0, fetched=0;
+	wire    vramadr[13],fc[8];
+	func_self vup,sidex;
+	func_self disp_char, vadr;
+
+	proc_name fetch();
+
+	 if(v_dispon & h_dispon & (h_count[2:0] == 0b000)) disp_char();
+	 any {
+	  h_count == H_DISP_END: h_dispon := 0b0;
+	  h_count == H_FP:       {
+					h_sync := 0b1;
+				 	side := ~side;
+				 }
+	  h_count == H_SYNC:     {
+	  			 h_sync := 0b0;
+				 if(reqfetcha | reqfetchb) {
+					fetch();
+					any {
+					~side: reqfetcha := 0b0;
+					 side: reqfetchb := 0b0;
+					}
+				 }
+	                         vup();
+				 }
+	  h_count == H_END: {
+	                         h_dispon := 0b1;
+	                         }
+	  }
+	 any {
+	  h_count == H_END: h_count := 0x0000;
+	  else:             h_count := h_count + 0x0001;
+	  }
+
+     func vup {
+          any {
+	  v_count == V_DISP_END: v_dispon := 0b0;
+	  v_count == V_FP:       v_sync   := 0b1;
+	  v_count == V_SYNC:     v_sync   := 0b0;
+	  v_count == V_END:      v_dispon := 0b1;
+	  }
+          any {
+	  v_count == V_END: {
+	       reqfetcha := 0b1;
+	       reqfetchb := 0b1;
+	       vramadra := 0x0000;
+	       vramadrb := 0x0000;
+	       v_count := 0x0000;
+	       }
+	  else: v_count := v_count + 0x0001;
+	  }
+	}
+     func disp_char seq {
+         {fn := sidex().fc; fetch();}
+	 if(fn[7]) {r();g();b();}
+	 if(fn[6]) {r();g();b();}
+	 if(fn[5]) {r();g();b();}
+	 if(fn[4]) {r();g();b();}
+	 if(fn[3]) {r();g();b();}
+	 if(fn[2]) {r();g();b();}
+	 if(fn[1]) {r();g();b();}
+	 if(fn[0]) {r();g();b();}
+     }
+
+     func sidex any {
+       ~side: {
+       		vramadr = vramadra[12:0];
+		fc = fca;
+              }
+        side: {
+       		vramadr = vramadrb[12:0];
+		fc = fcb;
+              }
+     }
+     func vadr {
+       sidex();
+       any  {
+       ~side: vramadra := vramadra + 0x0001;
+        side: vramadrb := vramadrb + 0x0001;
+       }
+     }
+
+     proc fetch {
+         if(~mbusy) {
+	   any {
+	    ~side: fca := mr(vadr().vramadr).data;
+	     side: fcb := mr(vadr().vramadr).data;
+	   }
+	   finish;
+	 }
+     }
+}

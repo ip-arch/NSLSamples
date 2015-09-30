@@ -1,0 +1,36 @@
+declare alu8 {
+  input inA[8],  inB[8], op[4];
+  output o[8];
+  func_in exe(op, inA, inB);
+  func_out done(o);
+}
+
+
+module alu8 {
+
+  wire a0[8], a1[8], ci;
+  wire t87[2], t[8], t70[8];
+
+  func_self add(a0,a1,ci);
+
+ func add {
+  t70 = {0b0,a0[6:0]} + {0b0,a1[6:0]} + {7'0b0,ci};
+  t87 = {0b0,a0[7]} + {0b0,a1[7]} + {0b0,t70[7]};
+  t   = {t87[0],t70[6:0]};
+ }
+
+ func exe {
+	any {
+	 op==ADD: done(add(inA,inB,0b0).t);
+	 op==SUB: done(add(inA,~inB,0b1).t);
+	 op==AND: done(inA&inB);
+	 op==OR : done(inA|inB);
+	 op==XOR: done(inA^inB);
+	 op==NOT: done(~inB);
+	 op==SLT: { add(inA,~inB, 0b1);
+           if( t87[1]^t70[7]^t[7] ) done(0x01); else done(0x00);
+          }
+	 op==MOV: done(inB);
+ 	}
+  }
+}

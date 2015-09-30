@@ -1,0 +1,11 @@
+declare NS11 {
+  input a[8],b[8];
+  output f[8];
+  func_in exec_add(a,b);
+}
+
+module NS11 {
+  func exec_add {
+	f = a + b;
+  }
+}

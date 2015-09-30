@@ -1,0 +1,42 @@
+declare glfsr { 
+    input seed[16]; 
+    output q[16]; 
+    func_in set_seed(seed); 
+    func_in next_rand : q; 
+} 
+  
+module glfsr { 
+    reg r[16] = 0x39a5; 
+    variable v[16]; 
+    integer i; 
+  
+    func next_rand { 
+        generate (i=0;i<15;i++) { 
+            if((i == 13) || (i == 12) || (i == 10)) v[i] = r[i+1] ^ r[0]; 
+            else v[i] = r[i+1]; 
+            } 
+        v[15] = r[0]; 
+        r:=v; 
+        return r; 
+    } 
+  
+    func set_seed r:=seed; 
+} 
+  
+declare tut11 simulation {} 
+  
+module tut11 { 
+    glfsr rmod; 
+    reg count[16]=0; 
+  
+    count++; 
+    any { 
+        3'(count) == 7: { 
+            _display("set seed:%d",count+0x9876); 
+            rmod.set_seed(count+0x9876); 
+        } 
+        count==10:    _finish("finished"); 
+        else:    _display("random generate %d", rmod.next_rand()); 
+    } 
+} 
+

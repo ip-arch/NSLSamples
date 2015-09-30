@@ -1,0 +1,8 @@
+ADDRESS_SPACE rom8k RAMB16 [0x0000:0x1fff]
+ BUS_BLOCK
+ rom/Mram_ram4 [7:6];
+ rom/Mram_ram3 [5:4];
+ rom/Mram_ram2 [3:2];
+ rom/Mram_ram1 [1:0];
+ END_BUS_BLOCK;
+END_ADDRESS_SPACE;

@@ -1,0 +1,374 @@
+// SN/X v1.5  by Naohiko Shimizu, IP ARCH, Inc. 
+// Copyright (c) 2010 IP ARCH, Inc. All rights reserved. 
+  
+#define ADD 0 
+#define AND 1 
+#define SLT 3 
+#define NOT 4 
+#define SR  6 
+#define HLT 7 
+  
+#define LD  0x8 
+#define ST  0x9 
+#define LDA 0xa 
+#define BZ  0xe 
+#define BAL 0xf 
+  
+  
+struct SNX_itype { 
+    op[4]; 
+    r1[2]; 
+    r2[2]; 
+    I[8]; 
+    }; 
+  
+struct SNX_rtype { 
+    op[4]; 
+    r2[2]; 
+    r3[2]; 
+    r1[2]; 
+    fn[6]; 
+    }; 
+  
+struct twoinst {
+	even[16];
+	odd[16];
+};
+
+/* SNX class comment body */ 
+declare    snx  {   
+    // -- snx  -- 
+    input    inst[32]; 
+    input    datai[16]; 
+    output    datao[16]; 
+    output    iadrs[16]; 
+    output    adrs[16];   
+    // -- snx  -- 
+    func_out    inst_read(iadrs):inst; 
+    func_out    inst_write(iadrs); 
+    func_out    memory_read(adrs):datai; 
+    func_out    memory_write(adrs,datao); 
+    func_out    wb(); 
+    func_out    hlt(); 
+} 
+  
+   
+declare    alu16  { 
+    // -- alu16  -- 
+    input    a[16]; 
+    input    b[16]; 
+    input    f[3]; 
+    output    q[16]; 
+    // -- alu16  -- 
+    func_in    exe(f,a,b):q; 
+} 
+  
+   
+declare    cla16  { 
+    // -- cla16  -- 
+    input    cin; 
+    input    in1[16]; 
+    input    in2[16]; 
+    output    q[16]; 
+    // -- cla16  -- 
+    func_in    exe(cin,in1,in2):q; 
+} 
+   
+  
+declare    reg4  { 
+    // -- reg4  -- 
+    input    regin[16]; 
+    output    regouta[16]; 
+    output    regoutb[16]; 
+    input    n_regin[2]; 
+    input    n_regouta[2]; 
+    input    n_regoutb[2]; 
+    input    regino[16]; 
+    output    regoutc[16]; 
+    output    regoutd[16]; 
+    input    n_regino[2]; 
+    input    n_regoutc[2]; 
+    input    n_regoutd[2]; 
+    // -- reg4  -- 
+    func_in    write(n_regin,regin); 
+    func_in    reada(n_regouta):regouta; 
+    func_in    readb(n_regoutb):regoutb; 
+    func_in    writo(n_regino,regino); 
+    func_in    readc(n_regoutc):regoutc; 
+    func_in    readd(n_regoutd):regoutd; 
+} 
+   
+  
+declare    inc16  { 
+    // -- inc16  -- 
+    input    a[16]; 
+    output    q[16]; 
+    // -- inc16  -- 
+    func_in    exe(a):q; 
+} 
+  
+   
+  
+module    snx { 
+    // -- snx  -- 
+    alu16    alu,aluo; 
+    reg4     gr; 
+    inc16    inc; 
+  
+  
+    reg    pc[16]; 
+	reg		npc[16], npco[16];
+    SNX_rtype reg opreg;
+    SNX_rtype reg oprego;
+ 
+    reg    mar[16]; 
+    reg    regnum[2]; 
+  
+  
+    func_self    start(); 
+    func_self	stall();
+    func_self	stallo();
+    func_self	exec_ok();
+   
+    proc_name    ifetch (pc); 
+    proc_name    exec (opreg,npc); 
+    proc_name    execo (oprego,npco); 
+    proc_name    mstore (regnum,mar); 
+    proc_name    mload (regnum,mar); 
+  
+     
+    /* common operations */ 
+    { 
+    reg    st0=0,st1,st2; 
+    st0:=1; st1:=st0; st2:=st1; 
+    if(~st2&st1) start(); 
+    } 
+      
+    /* func_in start() operation */ 
+    func    start { 
+        ifetch(0x0000); 
+    } 
+          
+    /* proc ifetch(pc) operation */ 
+    proc    ifetch {
+	twoinst wire instmem; 
+	if(!(stall|stallo)) {
+		instmem = inst_read(pc&0xfffe);
+		ifetch(inc.exe(pc|1));
+		if(!pc[0]) exec(instmem.even,pc|1); 
+		execo(instmem.odd,inc.q);
+	}
+    } 
+    /* proc exec(opreg) operation */ 
+    proc    exec { 
+	SNX_itype wire opitype; 
+        wire    opr1[16]; 
+        wire    opr2[16]; 
+        wire    aluq[16];
+		func_self    itype();
+ 
+		if(opreg.op[3]) itype();
+        opitype = opreg; 
+        opr1 = gr.reada(opreg.r2); 
+        if(itype&&(opreg.r3==0b00))    opr2 = 0x0000; 
+        else                opr2 = gr.readb(opreg.r3); 
+  
+        if(itype)    aluq=alu.exe(ADD, 16#opitype.I, opr2); 
+        else        aluq=alu.exe(3'(opreg.op),opr1,opr2); 
+ 
+        any {
+             (opitype.op==BAL) | ((opitype.op==BZ) & (opr1==0x0000)): {wb(); ifetch(aluq); stall(); ifetch.finish(); }
+             opreg.op==HLT: {wb(); hlt(); finish(); ifetch.finish(); stall(); }
+             opitype.op==LD: {mload(opitype.r1,aluq); stall(); }
+             opitype.op==ST: {mstore(opitype.r1,aluq); stall();} 
+             else: {exec_ok(); wb(); finish(); }
+         } 
+
+  
+  
+        any { 
+            !itype && (opreg.op!=HLT): gr.write(opreg.r1,aluq); 
+            opitype.op == LDA: gr.write(opitype.r1,aluq); 
+            opitype.op == BAL: gr.write(opitype.r1,npc); 
+        } 
+    } 
+           
+
+    /* proc execo(oprego) operation */ 
+    proc    execo { 
+	SNX_itype wire opitypo; 
+        wire    opr1o[16]; 
+        wire    opr2o[16]; 
+        wire    aluqo[16];
+		func_self	suspend();
+		func_self    itypo();
+ 
+		if(oprego.op[3]) itypo();
+        opitypo = oprego; 
+        opr1o = gr.readc(oprego.r2); 
+        if(itypo&&(oprego.r3==0b00))    opr2o = 0x0000; 
+        else                opr2o = gr.readd(oprego.r3); 
+  
+        if(itypo)    aluqo=aluo.exe(ADD, 16#opitypo.I, opr2o); 
+        else        aluqo=aluo.exe(3'(oprego.op),opr1o,opr2o); 
+ 
+	any {
+		exec & itype & itypo:if((opreg.op==LDA) &&
+			((((oprego.op == BZ) || (oprego.op == ST)) && (opitype.r1 == opitypo.r1)) ||
+			 ((opitype.r1 == opitypo.r2) && (opitypo.r2 != 0)) ||
+			 (((oprego.op==LDA)||(oprego.op==BAL)) && (opitype.r1==opitypo.r1)))
+			) suspend();
+		exec & itype & !itypo: if((opreg.op==LDA) &&
+			 ((opitype.r1 == oprego.r2) || (opitype.r1 == oprego.r3) ||
+			  (opitype.r1==oprego.r1))) suspend();
+		exec & !itype & itypo: if(
+			(((oprego.op == BZ) || (oprego.op == ST)) && (opreg.r1 == opitypo.r1)) ||
+			 ((opreg.r1 == opitypo.r2) && (opitypo.r2 != 0)) ||
+			 (((oprego.op==LDA)||(oprego.op==BAL)) && (opreg.r1==opitypo.r1))
+			) suspend();
+		exec & !itype & !itypo: if((opreg.r1==oprego.r2) || (opreg.r1 == oprego.r3)||
+			(opreg.r1==oprego.r1)) suspend();
+        mload & itypo: if(
+            (((oprego.op == BZ) || (oprego.op == ST)) && (regnum == opitypo.r1)) ||
+             ((regnum == opitypo.r2) && (opitypo.r2 != 0)) ||
+			 (((oprego.op==LDA)||(oprego.op==BAL)) && (regnum==opitypo.r1))
+            ) suspend();
+        mload & !itypo: if(
+            (regnum==oprego.r2) || (regnum == oprego.r3)  || (regnum==oprego.r1)
+            ) suspend();
+
+	}
+	if(exec && ((opitype.op==BAL) || ((opitype.op==BZ) && (opr1==0)) || (opitype.op==HLT))) finish();
+	if((!exec || exec_ok) && !suspend) {
+        	any {
+             	(opitypo.op==BAL) | ((opitypo.op==BZ) & (opr1o==0x0000)): {wb(); ifetch(aluqo); stall(); ifetch.finish(); }
+             	oprego.op==HLT: {wb(); hlt(); finish(); ifetch.finish(); stallo(); }
+             	opitypo.op==LD: {mload(opitypo.r1,aluqo); stallo(); }
+             	opitypo.op==ST: {mstore(opitypo.r1,aluqo); stallo();} 
+             	else: {wb(); finish(); }
+         	} 
+
+        	any { 
+            	!itypo && (oprego.op!=HLT): gr.writo(oprego.r1,aluqo); 
+            	opitypo.op == LDA: gr.writo(opitypo.r1,aluqo); 
+            	opitypo.op == BAL: gr.writo(opitypo.r1,npco); 
+        	} 
+	}
+	else stallo();
+    } 
+           
+
+    /* proc mstore(regnum,mar) operation */ 
+    proc    mstore { 
+        memory_write(mar,gr.reada(regnum)); 
+        wb(); 
+        finish(); 
+    } 
+          
+    /* proc mload(regnum,mar) operation */ 
+    proc    mload { 
+        gr.write(regnum,memory_read(mar)); 
+        wb(); 
+        finish(); 
+    } 
+} 
+  
+module    alu16 { 
+    cla16    cla; 
+    /* common operations */ 
+    { 
+    } 
+      
+    /* func_in exe(f,a,b) operation */ 
+    func    exe { 
+        any { 
+            f==ADD: return cla.exe(0b0,a,b); 
+            f==AND: return a&b; 
+            f==SLT: return 16'((a[15]&~b[15])|(cla.exe(0b1,a,~b)[15]&~a[15]&~b[15])|(cla.q[15]&a[15]&b[15])); 
+            f==NOT: return ~a; 
+            f==SR: return {0b0,a[15:1]}; 
+        } 
+    } 
+} 
+  
+module    cla16 { 
+    /* func_in exe(cin,in1,in2) operation */ 
+    func    exe { 
+    return in1 + in2 + 16'(cin); 
+    } 
+} 
+   
+module    reg4 { 
+    // -- reg4  -- 
+    reg    r0[16]; 
+    reg    r1[16]; 
+    reg    r2[16]; 
+    reg    r3[16]; 
+          
+    /* func_in write(n_regin,regin) operation */ 
+    func    write { 
+        any { 
+            n_regin == 0: r0 := regin; 
+            n_regin == 1: r1 := regin; 
+            n_regin == 2: r2 := regin; 
+            n_regin == 3: r3 := regin; 
+        } 
+    } 
+    func    writo { 
+        any { 
+            n_regino == 0: r0 := regino; 
+            n_regino == 1: r1 := regino; 
+            n_regino == 2: r2 := regino; 
+            n_regino == 3: r3 := regino; 
+        } 
+    } 
+         
+    /* func_in reada(n_regouta) operation */ 
+    func    reada { 
+        any { 
+            n_regouta == 0: return r0; 
+            n_regouta == 1: return r1; 
+            n_regouta == 2: return r2; 
+            n_regouta == 3: return r3; 
+        } 
+    } 
+          
+    /* func_in readb(n_regoutb) operation */ 
+    func    readb { 
+        any { 
+            n_regoutb == 0: return r0; 
+            n_regoutb == 1: return r1; 
+            n_regoutb == 2: return r2; 
+            n_regoutb == 3: return r3; 
+        } 
+    } 
+    /* func_in readc(n_regoutc) operation */ 
+    func    readc { 
+        any { 
+            n_regoutc == 0: return r0; 
+            n_regoutc == 1: return r1; 
+            n_regoutc == 2: return r2; 
+            n_regoutc == 3: return r3; 
+        } 
+    } 
+          
+    /* func_in readd(n_regoutd) operation */ 
+    func    readd { 
+        any { 
+            n_regoutd == 0: return r0; 
+            n_regoutd == 1: return r1; 
+            n_regoutd == 2: return r2; 
+            n_regoutd == 3: return r3; 
+        } 
+    } 
+          
+} 
+  
+  
+module    inc16 { 
+        /* func_in exe(a) operation */ 
+    func    exe { 
+        return a + 0x0001; 
+    } 
+} 
+ 

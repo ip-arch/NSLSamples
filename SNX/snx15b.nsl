@@ -1,0 +1,304 @@
+// SN/X v1.5  by Naohiko Shimizu, IP ARCH, Inc. 
+// Copyright (c) 2010 IP ARCH, Inc. All rights reserved. 
+  
+#define ADD 0 
+#define AND 1 
+#define SLT 3 
+#define NOT 4 
+#define SR  6 
+#define HLT 7 
+  
+#define LD  0x8 
+#define ST  0x9 
+#define LDA 0xa 
+#define BZ  0xe 
+#define BAL 0xf 
+  
+  
+struct SNX_itype { 
+    op[4]; 
+    r1[2]; 
+    r2[2]; 
+    I[8]; 
+    }; 
+  
+struct SNX_rtype { 
+    op[4]; 
+    r2[2]; 
+    r3[2]; 
+    r1[2]; 
+    fn[6]; 
+    }; 
+  
+/* SNX class comment body */ 
+declare    snx  {   
+    // -- snx  -- 
+    input    inst[16]; 
+    input    datai[16]; 
+    output    datao[16]; 
+    output    iadrs[16]; 
+    output    adrs[16];   
+    // -- snx  -- 
+    func_out    inst_read(iadrs):inst; 
+    func_out    inst_write(iadrs); 
+    func_out    memory_read(adrs):datai; 
+    func_out    memory_write(adrs,datao); 
+    func_out    wb(); 
+    func_out    hlt(); 
+} 
+  
+declare cache_unit {
+	input	tag_in[16];
+	output	data_out[16];
+	output	hit;
+	func_in	consult(tag_in) : hit;
+	input	reg_in[16];
+	input	data_in[16];
+	func_in	regist(reg_in, data_in);
+}
+
+module cache_unit {
+	reg valid=0, tag[16], data[16];
+	func consult {
+		if(valid && tag_in==tag) {
+			data_out = data;
+			return 1;
+		}
+		else return 0;
+	}
+	
+	func regist {
+		valid := 1;
+		tag := reg_in;
+		data := data_in;
+	}
+}
+
+declare    alu16  { 
+    // -- alu16  -- 
+    input    a[16]; 
+    input    b[16]; 
+    input    f[3]; 
+    output    q[16]; 
+    // -- alu16  -- 
+    func_in    exe(f,a,b):q; 
+} 
+  
+   
+declare    cla16  { 
+    // -- cla16  -- 
+    input    cin; 
+    input    in1[16]; 
+    input    in2[16]; 
+    output    q[16]; 
+    // -- cla16  -- 
+    func_in    exe(cin,in1,in2):q; 
+} 
+   
+  
+declare    reg4  { 
+    // -- reg4  -- 
+    input    regin[16]; 
+    output    regouta[16]; 
+    output    regoutb[16]; 
+    input    n_regin[2]; 
+    input    n_regouta[2]; 
+    input    n_regoutb[2]; 
+    // -- reg4  -- 
+    func_in    write(n_regin,regin); 
+    func_in    reada(n_regouta):regouta; 
+    func_in    readb(n_regoutb):regoutb; 
+} 
+   
+  
+declare    inc16  { 
+    // -- inc16  -- 
+    input    a[16]; 
+    output    q[16]; 
+    // -- inc16  -- 
+    func_in    exe(a):q; 
+} 
+  
+   
+  
+module    snx { 
+    // -- snx  -- 
+    alu16    alu; 
+    reg4    gr; 
+    inc16    inc; 
+	cache_unit	bp;
+	reg		next_pc[16];
+  
+    reg    pc[16]; 
+    SNX_rtype reg opreg; 
+    reg    mar[16]; 
+    reg    regnum[2]; 
+  
+  
+    func_self    start(); 
+	func_self	stall();
+   
+    proc_name    ifetch (pc); 
+    proc_name    exec (opreg,next_pc); 
+    proc_name    mstore (regnum,mar); 
+    proc_name    mload (regnum,mar); 
+  
+     
+    /* common operations */ 
+    { 
+    reg    st0=0,st1,st2; 
+    st0:=1; st1:=st0; st2:=st1; 
+    if(~st2&st1) start(); 
+    } 
+      
+    /* func_in start() operation */ 
+    func    start { 
+        ifetch(0x0000); 
+    } 
+          
+    /* proc ifetch(pc) operation */ 
+    proc    ifetch {
+		wire pc1[16];
+		pc1=inc.exe(pc);
+		if(!stall) {
+			if(bp.consult(pc1))
+				ifetch(bp.data_out);
+			else
+				ifetch(pc1);
+			exec(inst_read(pc),pc1); 
+		}
+    } 
+           
+    /* proc exec(opreg) operation */ 
+    proc    exec { 
+        SNX_itype wire opitype; 
+        wire    opr1[16]; 
+        wire    opr2[16]; 
+        wire    aluq[16];
+		func_self    itype(); 
+
+		if(opreg.op[3]) itype();
+        opitype = opreg; 
+        opr1 = gr.reada(opreg.r2); 
+        if(itype&&(opreg.r3==0b00))    opr2 = 0x0000; 
+        else                opr2 = gr.readb(opreg.r3); 
+  
+        if(itype)    aluq=alu.exe(ADD, 16#opitype.I, opr2); 
+        else        aluq=alu.exe(3'(opreg.op),opr1,opr2); 
+ 
+        any {
+             (opitype.op==BAL) | ((opitype.op==BZ) & (opr1==0x0000)): {
+				wb(); 
+				if(pc!=aluq) {
+					ifetch(aluq); stall(); ifetch.finish(); 
+					bp.regist(next_pc,aluq);
+				}
+			 }
+             opreg.op==HLT: {wb(); hlt(); finish(); ifetch.finish(); stall(); }
+             opitype.op==LD: {mload(opitype.r1,aluq); stall(); }
+             opitype.op==ST: {mstore(opitype.r1,aluq); stall();} 
+             else: {
+				wb(); 
+				if(pc!=next_pc) {
+					ifetch(next_pc); stall(); ifetch.finish();
+					bp.regist(next_pc,next_pc);
+				}
+				else finish(); 
+			}
+         } 
+
+  
+  
+        any { 
+            !itype && (opreg.op!=HLT): gr.write(opreg.r1,aluq); 
+            opitype.op == LDA: gr.write(opitype.r1,aluq); 
+            opitype.op == BAL: gr.write(opitype.r1,next_pc); 
+        } 
+    } 
+           
+    /* proc mstore(regnum,mar) operation */ 
+    proc    mstore { 
+        memory_write(mar,gr.reada(regnum)); 
+        wb(); 
+        finish(); 
+    } 
+          
+    /* proc mload(regnum,mar) operation */ 
+    proc    mload { 
+        gr.write(regnum,memory_read(mar)); 
+        wb(); 
+        finish(); 
+    } 
+} 
+  
+module    alu16 { 
+    cla16    cla; 
+    /* common operations */ 
+    { 
+    } 
+      
+    /* func_in exe(f,a,b) operation */ 
+    func    exe { 
+        any { 
+            f==ADD: return cla.exe(0b0,a,b); 
+            f==AND: return a&b; 
+            f==SLT: return 16'((a[15]&~b[15])|(cla.exe(0b1,a,~b)[15]&~a[15]&~b[15])|(cla.q[15]&a[15]&b[15])); 
+            f==NOT: return ~a; 
+            f==SR: return {0b0,a[15:1]}; 
+        } 
+    } 
+} 
+  
+module    cla16 { 
+    /* func_in exe(cin,in1,in2) operation */ 
+    func    exe { 
+    return in1 + in2 + 16'(cin); 
+    } 
+} 
+   
+module    reg4 { 
+    // -- reg4  -- 
+    reg    r0[16]; 
+    reg    r1[16]; 
+    reg    r2[16]; 
+    reg    r3[16]; 
+          
+    /* func_in write(n_regin,regin) operation */ 
+    func    write { 
+        any { 
+            n_regin == 0: r0 := regin; 
+            n_regin == 1: r1 := regin; 
+            n_regin == 2: r2 := regin; 
+            n_regin == 3: r3 := regin; 
+        } 
+    } 
+         
+    /* func_in reada(n_regouta) operation */ 
+    func    reada { 
+        any { 
+            n_regouta == 0: return r0; 
+            n_regouta == 1: return r1; 
+            n_regouta == 2: return r2; 
+            n_regouta == 3: return r3; 
+        } 
+    } 
+          
+    /* func_in readb(n_regoutb) operation */ 
+    func    readb { 
+        any { 
+            n_regoutb == 0: return r0; 
+            n_regoutb == 1: return r1; 
+            n_regoutb == 2: return r2; 
+            n_regoutb == 3: return r3; 
+        } 
+    } 
+} 
+  
+  
+module    inc16 { 
+        /* func_in exe(a) operation */ 
+    func    exe { 
+        return a + 0x0001; 
+    } 
+} 
+ 

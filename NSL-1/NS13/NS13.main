@@ -1,0 +1,20 @@
+module main;
+ reg [3:0] b,a;
+ integer i;
+ reg do;
+ wire [3:0] f;
+ NS13 NS13(.p_reset(p_reset),.m_clock(m_clock),.b(b),.a(a),.f(f),.do(do));
+
+ initial begin
+  $dumpfile("NS13.vcd");
+  $dumpvars;
+  for(i=0;i<4;i=i+1)
+   begin
+    b = $random;
+    a = $random;
+    do = 1;
+    #1 $display("a:%b, b:%b, f:%b",a,b,f);
+   end
+   #1 $finish;
+ end
+endmodule

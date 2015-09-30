@@ -1,0 +1,19 @@
+declare tut14 simulation { }
+ 
+module tut14 {
+    reg count[8] = 0;
+    reg value[8];
+    proc_name  start(value);
+ 
+    count++;
+    if(count==100) start(count);
+    if(count==200) _finish("countX = %d", count);
+ 
+    proc start seq {
+        _display("Hello World: value = %d, count1 = %d", value, count);
+        _display("count2 = %d", count);
+        _display("count3 = %d", count);
+	finish;
+    }
+}
+ 

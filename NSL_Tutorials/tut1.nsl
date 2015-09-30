@@ -1,0 +1,11 @@
+ 
+declare tut1 simulation { }
+ 
+module tut1 {
+    reg count[8] = 0;
+ 
+    count++;
+    if(count==100) _display("Hello World");
+    if(count==200) _finish("bye");
+}
+ 

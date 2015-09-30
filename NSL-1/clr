@@ -1,0 +1,6 @@
+#!/bin/sh
+for i in $*
+do
+  make -f Makefile TARGET=$1 clean
+  shift
+done
