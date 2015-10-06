@@ -1,11 +1,11 @@
 declare nsb2 {
-   input a[8];
-   output f[8];
+   input a[4];
+   output f[4];
    func_in req(a);
    func_out ack(f);
 }
 module nsb2 {
-   reg  adr[8],d0[8],d1[8],d2[8],d3[8];
+   reg  adr[4]=0,d0[4]=0,d1[4]=0,d2[4]=0,d3[4]=0;
    func req seq {
       adr := a;
       d0 := a;

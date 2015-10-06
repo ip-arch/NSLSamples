@@ -1,7 +1,7 @@
 module main;
- reg [7:0] a;
+ reg [3:0] a;
  integer i;
- wire [7:0] f,g;
+ wire [3:0] f,g;
  reg m_clock, en;
  nsb1 nsb1(.p_reset(p_reset),.m_clock(m_clock),.a(a),.en(en),.f(f));
 
@@ -16,7 +16,7 @@ module main;
    begin
     a = $random;
     if(i>5) en=1;
-    if(i>7) en=0;
+    if(i>3) en=0;
     $display("m_clock:%b a:%b, en:%b, f:%b", m_clock, a, en, f);
     #2 ;
    end

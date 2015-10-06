@@ -1,7 +1,7 @@
 module main;
- reg [7:0] a, in;
+ reg [3:0] a, in;
  reg p_reset,m_clock, req;
- wire [7:0] f;
+ wire [3:0] f;
  nsb2 nsb2(.p_reset(p_reset),.m_clock(m_clock),.a(a),.req(req),.ack(ack),.f(f));
 
  initial begin

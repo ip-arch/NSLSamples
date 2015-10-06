@@ -1,7 +1,7 @@
 module main;
- reg [7:0] b,a;
+ reg [3:0] b,a;
  integer i;
- wire [7:0] f;
+ wire [4:0] f;
  NS04 NS04(.p_reset(p_reset),.m_clock(m_clock),.b(b),.a(a),.f(f));
 
  initial begin

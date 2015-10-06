@@ -1,10 +1,10 @@
 declare nsb1 {
-   input a[8];
-   output f[8];
+   input a[4];
+   output f[4];
    func_in en(a);
 }
 module nsb1 {
-   reg  r[8];
+   reg  r[4] = 0;
    func en r:=a;
    f = r;
   }
