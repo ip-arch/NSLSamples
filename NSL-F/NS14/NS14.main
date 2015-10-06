@@ -1,0 +1,28 @@
+module main;
+ reg [3:0] in;
+ reg p_reset,m_clock;
+ wire f,g;
+ NS14 NS14(.p_reset(p_reset),.m_clock(m_clock),.b(in[1]),.a(in[0]),.f(f));
+
+ initial begin
+  p_reset = 1;
+  m_clock = 0;
+  in=0;
+  #1 m_clock = ~m_clock;
+  p_reset = 0;
+  forever #1 m_clock = ~m_clock;
+  end
+
+  always @(posedge m_clock) begin
+     in <= in + 1;
+     begin
+      $display("a:%d, b:%d, r:%d, f:%d", in[0],in[1],NS14.r,f);
+     end
+     if(in>=8) #1 $finish;
+  end
+
+ initial begin
+  $dumpfile("NS14.vcd");
+  $dumpvars;
+ end
+endmodule

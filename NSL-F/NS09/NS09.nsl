@@ -1,0 +1,18 @@
+declare NS09 {
+  input a,b;
+  output f;
+}
+
+module NS09 {
+  wire c;
+  func_self do(c);
+
+  any {
+     a & ~b: do(a);
+     ~a & b: do(b);
+   }
+
+  func do {
+	f = c;
+  }
+}

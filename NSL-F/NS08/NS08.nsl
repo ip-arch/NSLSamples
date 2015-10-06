@@ -1,0 +1,11 @@
+declare NS08 {
+	input a,b;
+	output f;
+}
+
+module NS08 {
+	wire c,d;
+	c = a & ~b;
+	d = ~a & b;
+	f = c | d;
+}

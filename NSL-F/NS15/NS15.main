@@ -1,0 +1,37 @@
+module main;
+ parameter STOP=32;
+ integer i;
+ reg [3:0] in;
+ reg [7:0] adr;
+ reg p_reset,m_clock,read,write;
+ wire [3:0] f;
+ NS15 NS15(.p_reset(p_reset),.m_clock(m_clock),.adr(adr),.in(in),.f(f),.write(write),.read(read));
+
+ initial 
+  for(i=0;i<256;i=i+1) NS15.m[i] = $random;
+ initial begin
+  p_reset = 1;
+  m_clock = 0;
+  adr=0;
+  #1 m_clock = ~m_clock;
+  p_reset = 0;
+  forever #1 m_clock = ~m_clock;
+  end
+
+  always @(negedge m_clock) begin
+     in = $random;
+     adr = (adr + 1)&3;
+     write = ($random>>2);
+     read = !write;
+     begin
+      $display("adr:%d, in:%d, f:%d, read:%d, write:%d",
+         adr, in, f, read, write);
+     end
+  end
+
+ initial begin
+  $dumpfile("NS15.vcd");
+  $dumpvars;
+  #STOP  $finish;
+ end
+endmodule

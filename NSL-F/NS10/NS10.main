@@ -1,0 +1,24 @@
+module main;
+ reg [5:0] in;
+ reg eand,eor,exor;
+ wire f;
+ reg [30:0] op;
+ NS10 NS10(.p_reset(p_reset),.m_clock(m_clock),.b(in[1]),.a(in[0]),.f(f),.exec_and(eand),.exec_or(eor),.exec_xor(exor));
+
+ initial begin
+  $dumpfile("NS10.vcd");
+  $dumpvars;
+  for(in=4;in<16;in=in+1)
+   begin
+    case (in[3:2])
+      1: begin eand = 1; eor = 0; exor = 0; op="AND"; end
+      2: begin eand = 0; eor = 1; exor = 0; op="OR"; end
+      3: begin eand = 0; eor = 0; exor = 1; op="XOR"; end
+    default: begin eand = 0; eor = 0; exor = 0; op="--"; end
+    endcase
+    #1 $display("%3s: a:%d, b:%d, f:%d",
+	 op,in[1],in[0],f);
+   end
+   #1 $finish;
+ end
+endmodule

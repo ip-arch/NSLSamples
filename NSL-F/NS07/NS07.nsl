@@ -1,0 +1,12 @@
+declare NS07 {
+  input a,b;
+  input c,d;
+  output f;
+}
+
+module NS07 {
+  any {
+     c: f = a & b;
+     d: f = a ^ b;
+   }
+}

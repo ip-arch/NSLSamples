@@ -1,0 +1,13 @@
+declare nsb0 {
+   input a[4];
+   output f[4], g[4];
+}
+module nsb0 {
+   wire b[4];
+   reg  r[4]=0;
+   b = a;
+   r := a;
+   f = b;
+   g = r;
+  }
+

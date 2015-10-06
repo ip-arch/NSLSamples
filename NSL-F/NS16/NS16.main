@@ -1,0 +1,26 @@
+module main;
+ integer i;
+ wire [3:0] f;
+ reg do;
+ reg [3:0] in;
+ reg p_reset, m_clock;
+ NS16 NS16(.p_reset(p_reset),.m_clock(m_clock),.a(in),.f(f),.do(do));
+
+ initial begin
+  $dumpfile("NS16.vcd");
+  $dumpvars;
+  m_clock = 0;
+  p_reset = 1;
+  #1
+  p_reset = 0;
+  for(i=0;i<16;i=i+1)
+   begin
+    do = (($random&'hf)<8);
+    in = $random;
+    #1 m_clock=1;
+    #1 m_clock=0;
+    $display("do:%b a:%x, f:%x", do, in, f);
+   end
+   #1 $finish;
+ end
+endmodule

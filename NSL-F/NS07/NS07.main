@@ -1,0 +1,15 @@
+module main;
+ reg [5:0] in;
+ wire f;
+ NS07 NS07(.p_reset(p_reset),.m_clock(m_clock),.b(in[1]),.a(in[0]),.d(in[3]),.c(in[2]),.f(f));
+
+ initial begin
+  $dumpfile("NS07.vcd");
+  $dumpvars;
+  for(in=0;in<16;in=in+1)
+   begin
+    #1 $display("a:%d, b:%d, c:%d, d:%d, f:%d", in[0],in[1],in[2],in[3],f);
+   end
+   #1 $finish;
+ end
+endmodule

@@ -1,0 +1,20 @@
+module main;
+ reg [7:0] in1,in2;
+ integer i;
+ reg eadd;
+ wire [7:0] f;
+ NS11 NS11(.p_reset(p_reset),.m_clock(m_clock),.b(in1),.a(in2),.f(f),.exec_add(eadd));
+
+ initial begin
+  $dumpfile("NS11.vcd");
+  $dumpvars;
+  for(i=0;i<4;i=i+1)
+   begin
+    in1 = $random;
+    in2 = $random;
+    eadd = 1;
+    #1 $display("a:%d, b:%d, f:%d",in2,in1,f);
+   end
+   #1 $finish;
+ end
+endmodule

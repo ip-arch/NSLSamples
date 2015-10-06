@@ -1,0 +1,11 @@
+declare NS06 {
+  input a,b;
+  input c,d;
+  output f;
+}
+module NS06 {
+  alt {
+     c: f = a & b;
+     d: f = a ^ b;
+   }
+}

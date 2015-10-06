@@ -1,0 +1,8 @@
+declare NS03 {
+  input a,b;
+  output f;
+}
+
+module NS03 {
+  f = a & b;
+}

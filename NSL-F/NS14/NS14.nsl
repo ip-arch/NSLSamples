@@ -1,0 +1,10 @@
+declare NS14 {
+  input a,b;
+  output f;
+}
+
+module NS14 {
+	reg r;
+	r := a & b;
+	f = r;
+}

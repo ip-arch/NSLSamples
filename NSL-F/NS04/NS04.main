@@ -1,0 +1,18 @@
+module main;
+ reg [7:0] b,a;
+ integer i;
+ wire [7:0] f;
+ NS04 NS04(.p_reset(p_reset),.m_clock(m_clock),.b(b),.a(a),.f(f));
+
+ initial begin
+  $dumpfile("NS04.vcd");
+  $dumpvars;
+  for(i=0;i<4;i=i+1)
+   begin
+    a = $random;
+    b = $random;
+    #1 $display("a:%d, b:%d, f:%d", a,b,f);
+   end
+   #1 $finish;
+ end
+endmodule

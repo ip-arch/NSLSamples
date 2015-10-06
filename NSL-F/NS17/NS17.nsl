@@ -1,0 +1,20 @@
+declare NS17 {
+  func_in do();
+}
+
+module NS17 {
+
+  proc_name p();
+
+  func do {
+	p();
+  }
+
+  proc p {
+    state_name st1,st2,st3;
+    first_state st1;
+    state st1 goto st2;
+    state st2 goto st3;
+    state st3 { goto st1; finish; }
+  }
+}

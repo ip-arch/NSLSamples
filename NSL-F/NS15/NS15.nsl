@@ -1,0 +1,18 @@
+declare NS15 {
+  input in[4],adr[8];
+  output f[4];
+  func_in write();
+  func_in read();
+}
+
+module NS15 {
+  mem m[256][4];
+
+  func write {
+	m[adr] := in;
+  }
+
+  func read  {
+	f=m[adr];
+  }
+}

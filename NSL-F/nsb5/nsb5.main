@@ -1,0 +1,30 @@
+module main;
+ reg p_reset,m_clock, req;
+ reg [7:0] in;
+ nsb5 nsb5(.p_reset(p_reset),.m_clock(m_clock),.req(req),.s1(s1),.s2(s2),.s3(s3),.s4(s4));
+
+ initial begin
+  p_reset = 1;
+  m_clock = 0;
+  in = 0;
+  #1 m_clock = ~m_clock;
+  p_reset = 0;
+  forever #1 m_clock = ~m_clock;
+  end
+
+  always @(negedge m_clock) begin
+     in <= in + 1;
+     begin
+      $display("req:%d, s1:%d, s2:%d, s3:%d, s4:%d", req,s1,s2,s3,s4);
+     end
+     if(in>=12) #1 $finish;
+  end
+
+ initial begin
+  $dumpfile("nsb5.vcd");
+  $dumpvars;
+     req=0;
+  #4 req=1;
+  #2 req=0;
+ end
+endmodule

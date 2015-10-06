@@ -1,0 +1,16 @@
+declare nsb4 {
+   func_in req();
+   func_out s1,s2,s3,s4;
+}
+module nsb4 {
+   func req seq {
+   label_name jumpto;
+      s1();
+      goto jumpto;
+      s2();
+      s3();
+jumpto:
+      s4();
+   }
+  }
+

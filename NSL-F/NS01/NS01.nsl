@@ -1,0 +1,8 @@
+declare NS01 {
+	input a[4];
+	output f[8];
+}
+
+module NS01 {
+	f=8#(a);
+}

@@ -1,0 +1,23 @@
+module main;
+ reg [3:0] a;
+ integer i;
+ wire [3:0] f,g;
+ reg m_clock;
+ nsb0 nsb0(.p_reset(p_reset),.m_clock(m_clock),.a(a),.g(g),.f(f));
+
+ initial forever #2 m_clock=~m_clock;
+
+ initial begin
+  $dumpfile("nsb0.vcd");
+  $dumpvars;
+  m_clock=0;
+  #1;
+  for(i=0;i<10;i=i+1)
+   begin
+    a = $random;
+    $display("m_clock:%b a:%b, g:%b, f:%b", m_clock, a,g,f);
+    #2;
+   end
+   #1 $finish;
+ end
+endmodule
