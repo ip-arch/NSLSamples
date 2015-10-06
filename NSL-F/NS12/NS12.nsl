@@ -1,17 +1,27 @@
-#include "../NS11/NS11.nsl"
+declare sub {
+   input a[2],b[2];
+   output f[3];
+   func_in exec_add(a,b):f;
+}
+
+module sub {
+   func exec_add {
+     return a+b;
+   }
+}
 
 declare NS12 {
-  input a[8],b[8],c[8],d[8];
-  output f[8];
+  input a[2],b[2],c[2],d[2];
+  output f[3];
   func_in do(a,b,c,d);
 }
 
 module NS12 {
-  NS11 mod1,mod2,mod3;
+  sub mod1,mod2,mod3;
 
   func do {
 	f = mod1.exec_add(
-		mod2.exec_add(a,b).f,
-		mod3.exec_add(c,d).f).f;
+		mod2.exec_add(a,b).f[1:0],
+		mod3.exec_add(c,d).f[1:0]).f;
   }
 }

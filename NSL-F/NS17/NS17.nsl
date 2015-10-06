@@ -1,4 +1,5 @@
 declare NS17 {
+  output a,b,c;
   func_in do();
 }
 
@@ -13,8 +14,8 @@ module NS17 {
   proc p {
     state_name st1,st2,st3;
     first_state st1;
-    state st1 goto st2;
-    state st2 goto st3;
-    state st3 { goto st1; finish; }
+    state st1 {a=1; goto st2;}
+    state st2 {b=1; goto st3;}
+    state st3 {c=1; goto st1; finish; }
   }
 }

@@ -1,12 +1,12 @@
 declare NS15 {
-  input in[4],adr[8];
+  input in[4],adr[4];
   output f[4];
   func_in write();
   func_in read();
 }
 
 module NS15 {
-  mem m[256][4];
+  mem m[14][4];
 
   func write {
 	m[adr] := in;

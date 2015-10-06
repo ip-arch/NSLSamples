@@ -1,8 +1,8 @@
 module main;
- reg [7:0] d,c,b,a;
+ reg [1:0] d,c,b,a;
  reg do;
  integer i;
- wire [7:0] f;
+ wire [2:0] f;
  NS12 NS12(.p_reset(p_reset),.m_clock(m_clock),.d(d),.c(c),.b(b),.a(a),.f(f),.do(do));
 
  initial begin

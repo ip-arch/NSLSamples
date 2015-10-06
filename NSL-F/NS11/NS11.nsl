@@ -1,6 +1,6 @@
 declare NS11 {
-  input a[8],b[8];
-  output f[8];
+  input a[4],b[4];
+  output f[5];
   func_in exec_add(a,b);
 }
 

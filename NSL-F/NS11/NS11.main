@@ -1,8 +1,8 @@
 module main;
- reg [7:0] in1,in2;
+ reg [3:0] in1,in2;
  integer i;
  reg eadd;
- wire [7:0] f;
+ wire [4:0] f;
  NS11 NS11(.p_reset(p_reset),.m_clock(m_clock),.b(in1),.a(in2),.f(f),.exec_add(eadd));
 
  initial begin
