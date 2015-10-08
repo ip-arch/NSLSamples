@@ -6,6 +6,7 @@ VVP=vvp
 VASY=vasy
 BOOG=boog
 XSCH=xsch
+BOARD=DE0_CV
 loTARGET=$(shell echo $(TARGET) | tr A-Z a-z)
 
 $(TARGET)/$(TARGET).v:	$(TARGET)/$(TARGET).nsl
@@ -36,6 +37,19 @@ cir:	$(TARGET)/$(loTARGET).xsc
 	$(XSCH) -l $(loTARGET) \
 	)
 
+fpga:	$(TARGET)/synth/$(TARGET).sof
+
+$(TARGET)/synth/$(TARGET).sof:	$(TARGET)/$(TARGET).nsl
+	(cd $(TARGET); \
+	make BOARD=$(BOARD) clean all; \
+	)
+
+download:	$(TARGET)/synth/$(TARGET).sof
+	(cd $(TARGET); \
+	make BOARD=$(BOARD) download; \
+	)
+
+
 wave:	$(TARGET)/$(TARGET).exe $(TARGET)/$(TARGET).vcd $(TARGET)/$(TARGET).sig
 	(cd $(TARGET); $(GTKWAVE) $(TARGET).vcd $(TARGET).sig)
 
@@ -46,5 +60,7 @@ clean:
 	$(TARGET)/$(TARGET).vhdl \
 	$(TARGET)/$(loTARGET).vbe \
 	$(TARGET)/$(loTARGET).xsc \
-	$(TARGET)/$(loTARGET).vst \
-	;
+	$(TARGET)/$(loTARGET).vst ;\
+	(cd $(TARGET); \
+	make clean; \
+	)

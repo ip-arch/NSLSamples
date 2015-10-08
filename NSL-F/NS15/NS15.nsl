@@ -1,18 +1,24 @@
 declare NS15 {
   input in[4],adr[4];
   output f[4];
-  func_in write();
-  func_in read();
+  func_in write(adr);
+  func_in read(adr);
 }
 
 module NS15 {
   mem m[14][4];
+  reg d[4];
 
   func write {
 	m[adr] := in;
   }
 
-  func read  {
+  func read  seq {
+#ifdef SYNC
+	d:=m[adr];
+	f=d;
+#else
 	f=m[adr];
+#endif
   }
 }
