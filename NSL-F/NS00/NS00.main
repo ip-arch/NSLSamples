@@ -1,5 +1,5 @@
 module main;
- reg [7:0] a,b;
+ reg [3:0] a,b;
  integer i;
  wire [7:0] f;
  NS00 NS00(.p_reset(p_reset),.m_clock(m_clock),.a(a),.b(b),.f(f));
