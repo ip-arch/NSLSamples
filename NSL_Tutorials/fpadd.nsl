@@ -1,0 +1,313 @@
+/*
+  IEEE 754 type Single Precision Floating Point Pipeline Adder 
+  Copyright (c) 2011 Naohiko Shimizu, IP ARCH, Inc.
+
+  This circuit is provided only for demonstration of NSL description.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+*/
+
+/*
+  Adder interface declaration.
+  We will have two inputs 'a' and 'b' those must be normalized 
+  single precision IEEE754 numbers.
+  To start the circuit, you can invoke 'exe' with two arguments.
+  When the circuit finish the calculation, it will send the result
+  with done signal.
+  The circuit is completely pipelined.
+  And you can invoke it in every cycle.
+*/
+
+declare Ieee754SpAdd {
+	input a[32];
+	input b[32];
+	output result[32];
+	func_in exe(a,b);
+	func_out done(result);
+}
+
+/*
+   The struct Ieee754Sp defines single precision format of IEEE754.
+   It has Sign bit, 8bit Exponent, 23bit Mantissa.
+*/
+
+struct Ieee754Sp {
+	Sign;
+	Exponent[8];
+	Mantissa[23];
+};
+
+/*
+  We will use Barrel Shifter for pre-shift the mantissa.
+  Though the required length is not 32bit, we will use 32bit shifter.
+  Logic synthesizer will do the compaction of unused net.
+*/
+
+declare BarrelShift {
+	input a[32];
+	input sa[8];
+	output f[32];
+	func_in exe(a,sa):f;
+}
+
+/*
+  After the mantissa calculation, we need suppress leading zeros
+  of the result.
+  LeadingZeroShift provide the function.
+  It will return the result and shifted amount.
+*/
+
+declare LeadingZeroShift {
+	input a[32];
+	output shamt[8];
+	output f[32];
+	func_in exe(a):f;
+}
+
+/*
+  Barrel Shifter body.
+  We will decode each bit of shift amount and
+  determine to shift the contents or not.
+*/
+
+module BarrelShift {
+	wire t0[32],t1[32],t2[32],t3[32],t4[32];
+	func exe {
+		if(sa[0])	t0=a>>1;
+		else		t0=a;
+		if(sa[1])	t1=t0>>2;
+		else		t1=t0;
+		if(sa[2])	t2=t1>>4;
+		else		t2=t1;
+		if(sa[3])	t3=t2>>8;
+		else		t3=t2;
+		if(sa[4])	t4=t3>>16;
+		else		t4=t3;
+		if(sa[7:5]==0)	return t4;
+		else		return 0;
+	}
+}
+
+/*
+  Leading Zero Shifter body.
+  We will evaluate continuous zero from MSB to LSB.
+*/
+
+module LeadingZeroShift {
+	wire t0[32],t1[32],t2[32],t3[32],t4[32];
+	wire a0,a1,a2,a3,a4;
+
+	func exe {
+		if(a[31:16]==0)		{ a4 = 1; t0 = a<<16; }
+		else			{ a4 = 0; t0=a; }
+		if(t0[31:24]==0)	{ a3 = 1; t1 = t0<<8; }
+		else			{ a3 = 0; t1=t0; }
+		if(t1[31:28]==0)	{ a2 = 1; t2 = t1<<4; }
+		else			{ a2 = 0; t2=t1; }
+		if(t2[31:30]==0)	{ a1 = 1; t3 = t2<<2; }
+		else			{ a1 = 0; t3=t2; }
+		if(t3[31]==0)		{ a0 = 1; t4 = t3<<1; }
+		else			{ a0 = 0; t4=t3; }
+		shamt = 8'({a4,a3,a2,a1,a0});
+		return t4;
+	}
+	
+}
+
+/*
+  Floating Adder body.
+  It has 4 stages 'stageA' through 'stageD.'
+  At 'stageD' we will get the result.
+  exe:    invoke the circuit and calculate exponents differences.
+  stageA: pre-shift for adder operation.
+  stageB: Mantissa addition.
+  stageC: Leading zero shift.
+  stageD: Return result.
+*/
+
+module Ieee754SpAdd {
+/*
+  Resources defenitions.
+*/
+	BarrelShift bshft;
+	LeadingZeroShift lzshft;
+
+/*
+  stageA resources
+*/
+
+	reg Aexdf[8];
+	Ieee754Sp reg x, y;
+	proc_name stageA(Aexdf, x, y);
+
+/*
+  stageB resources
+*/
+
+	reg Bm1[32], Bm2[32], Bs1, Bs2, Bexp[8];
+	proc_name stageB(Bm1, Bm2, Bs1, Bs2, Bexp);
+
+	wire s1, s2, x1[32], x2[32], r1[32];
+	func_self madd(s1, s2, x1, x2) : r1;
+
+/*
+  stageC resources
+*/
+
+	reg Cm[32], Cs, Cexp[8];
+	proc_name stageC(Cm, Cs, Cexp);
+
+/*
+  stageD resources
+*/
+
+	Ieee754Sp reg z;
+	proc_name stageD(z);
+
+/*
+  func exe(a,b) is the starting point of this adder.
+*/
+
+	func exe {	
+		wire wdiff[9];
+
+/*
+		In IEEE 754, the exponent is biased binary.
+		Therefore, negative value of subtraction will 
+		show that 'b.Exponent > a.Exponent.'
+		We will select pre-shift argument depending on the result.
+*/
+		wdiff = 9'((Ieee754Sp)(a).Exponent) - 9'((Ieee754Sp)(b).Exponent);
+		if(wdiff[8]) {
+			stageA( -wdiff[7:0], b, a );
+		}
+		else {
+			stageA(  wdiff[7:0], a, b );
+		}
+	}
+
+/*
+	proc_name stageA(Aexdf, x, y);
+
+	We will pre-shift 'y' for addition.
+	Because IEEE754 suppress MSB's '1' in mantissa, we will add it here.
+	But if the exponent part is zero, it may be un-normalized value.
+	Therefore, we will not add '1'.
+*/
+	proc stageA {
+		wire xmsb[3],ymsb[3];
+
+		if(x.Exponent==0)
+			xmsb=0;
+		else
+			xmsb=3'b1;
+
+		if(y.Exponent==0)
+			ymsb=0;
+		else
+			ymsb=3'b1;
+
+		stageB( {xmsb,x.Mantissa,6'b0},
+			bshft.exe({xmsb,y.Mantissa,6'b0},Aexdf),
+			x.Sign,
+			y.Sign,
+			x.Exponent );
+	}
+
+/*
+	proc_name stageB(Bm1, Bm2, Bs1, Bs2, Bexp);
+
+	Add two mantissa values.
+	In IEEE754, the mantissa does not have sign it self.
+	Therefore, if the addition shows negative value,
+	we will make 2's complement of it. 
+*/
+
+/*
+	s1,s2 is sign bit for x1,x2.
+	When the value is negative, we will make 2's complement.
+*/
+	func madd {
+		return (32#s1^x1) + 32'(s1) + (32#s2^x2) + 32'(s2);
+	}
+
+	proc stageB {
+		wire m3[32];
+
+		m3 = madd(Bs1,Bs2,Bm1,Bm2);
+		if(m3[31]) 
+			stageC( -m3, m3[31], Bexp );
+		else
+			stageC(  m3, m3[31], Bexp );
+	}
+
+/*
+	proc_name stageC(Cm, Cs, Cexp);
+
+	We now have mantissa 'Cm', sign 'Cs', exponent 'Cexp.'
+	But we need to suppress leading zero of mantissa for normalize.
+	If the result of mantissa calculation was 0, we will return 0.
+	Or if the exponent was 0, it shows un-normalized value,
+	then we will not do the leading zero shift.
+*/
+	proc stageC {
+		if(Cm==0)
+			stageD(0);
+		else if(Cexp==0)
+			stageD({Cs,Cexp,Cm[28:6]});
+		else
+			stageD( {Cs,
+				8'(Cexp - lzshft.shamt + 1),
+				lzshft.exe({Cm[30:0], 1'b0})[30:8]
+				} );
+	}
+
+/*
+	proc_name stageD(z);
+	return ack signal and the result from adder.
+*/
+	proc stageD {
+		done(z);
+		finish;
+	}
+}
+
+declare fpadd simulation {}
+module fpadd {
+
+#define P1 -2.5e-1
+#define P2  1.25e-1
+
+	Ieee754Sp reg x1=P1, x2=P2, exp=(P1+P2);
+	Ieee754SpAdd fpad;
+
+	_monitor("TIME=%3d",_time);
+	
+	_init {
+		{fpad.exe(x1,x2);
+		_display("%08x + %08x = (exp %08x)", x1,x2, exp);
+		}
+		{fpad.exe(x2,x1);
+		_display("%08x + %08x = (exp %08x)", x2,x1, exp);
+		}
+		_delay(10);
+		_finish();
+	}
+
+	func fpad.done seq {
+		_display("result = %08x", fpad.result);
+	}
+}

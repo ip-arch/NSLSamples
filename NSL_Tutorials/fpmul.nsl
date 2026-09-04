@@ -1,0 +1,86 @@
+/*
+  IEEE 754 type Single Precision Floating Point Pipeline Multiplier 
+  Copyright (c) 2011 Naohiko Shimizu, IP ARCH, Inc.
+
+  This circuit is provided only for demonstration of NSL description.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+*/
+
+/*
+  Multiplier interface declaration.
+  We will have two inputs 'a' and 'b' those must be normalized 
+  single precision IEEE754 numbers.
+  To start the circuit, you can invoke 'exe' with two arguments.
+  When the circuit finish the calculation, it will send the result
+  with done signal.
+  The circuit is completely pipelined.
+  And you can invoke it in every cycle.
+*/
+
+struct Ieee754Sp {
+	Sign;
+	Exponent[8];
+	Mantissa[23];
+};
+
+declare Ieee754SpMul {
+	input a[32];
+	input b[32];
+	output result[32];
+	func_in exe(a,b);
+	func_out done(result);
+}
+
+module Ieee754SpMul {
+	Ieee754Sp reg x,y,z;
+	wire pp[48];
+
+	func exe seq {
+		{x:=a; y:=b; }
+		if(x==0 || y==0) z:=0;
+		else {
+			z.Sign := x.Sign ^ y.Sign;
+			pp = ({1'b1,x.Mantissa}*{1'b1,y.Mantissa});
+			if(pp[47]) {
+				z.Mantissa := pp[46:24];
+			}
+			else {
+				z.Mantissa := pp[45:23];
+			}
+				z.Exponent := x.Exponent + y.Exponent - 127 + 8'(pp[47]);
+		}
+		done(z);
+	}
+}
+
+#define P1 0.25
+#define P2 2.5
+
+declare fpmul simulation {}
+module fpmul {
+	Ieee754Sp reg x1=P1, x2=P2, exp=(P1*P2);
+	Ieee754SpMul fpad;
+	
+	_init {
+		fpad.exe(x1,x2);
+	}
+
+	func fpad.done seq {
+		_display("%x * %x = %x(exp %x)", x1,x2,fpad.result, exp);
+		_finish();
+	}
+}
