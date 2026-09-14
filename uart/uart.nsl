@@ -1,0 +1,190 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Naohiko Shimizu <nshimizu@ip-arch.jp>
+
+//#define DEBUG
+#include "uart.inc"
+/*
+ * UART module body.
+*/
+
+declare uart_clk {
+  input div_value[16];
+  func_in set_div(div_value);
+  func_in start_1bit();
+  func_in start_1_5bit();
+  func_out time_out();
+}
+
+module uart_clk {
+ reg count_init[16]=DEFAULT_DIV;
+ reg count[16]=0xFFFF;
+ proc_name counting(count);
+
+ proc counting {
+   if(count==0) finish;
+   else count--;
+ }
+
+ func set_div {
+   count_init := div_value;
+ }
+ func start_1bit seq {
+   counting (count_init);
+   time_out();
+ }
+ func start_1_5bit seq {
+   counting (count_init + (count_init>>1));
+   time_out();
+ }
+}
+
+
+declare uart_rx {
+  input rx;
+  output data[8];
+  func_out rx_ready(data);
+  func_in rx_ack();
+  input div[16];
+  func_in set_div(div);
+}
+
+module uart_rx {
+  reg rxd1=1, rxd=1;
+  reg rdata[8]=0;
+  reg bit_count[3]=0;
+  uart_clk clk_div;
+  state_name wait_start, recieve, hold;
+
+  rxd1 := rx; rxd := rxd1;
+
+  func set_div {
+    clk_div.set_div(div);
+  }
+
+  state wait_start {
+    if (rxd == 0) {
+      clk_div.start_1_5bit();
+      bit_count := 0;
+      goto recieve;
+    }
+  }
+  state recieve {
+     if(clk_div.time_out) {
+       clk_div.start_1bit();
+       bit_count++;
+       rdata := {rxd, rdata[7:1]};
+       if(bit_count == 7) {
+         goto hold;
+       }
+     }
+  }
+  state hold {
+    if(rx_ack) goto wait_start;
+    rx_ready(rdata);
+  }
+}
+
+declare uart_tx {
+  output tx;
+  input data[8];
+  func_in tx_out(data);
+  input div[16];
+  func_in set_div(div);
+  func_out txready();
+}
+
+module uart_tx {
+  reg txd=1;
+  reg tdata[8]=0;
+  reg bit_count[4]=0;
+  uart_clk clk_div;
+  state_name idle, stop_bit, stop_bit2, start_bit, sending;
+
+  tx = txd;
+
+  func set_div {
+    clk_div.set_div(div);
+  }
+
+  func tx_out {
+    tdata := data;
+    goto start_bit;
+  }
+
+  state idle {
+     txready();
+     bit_count := 0;
+  }
+
+  state start_bit {
+    clk_div.start_1bit();
+    txd := 0;
+    goto sending;
+  }
+  state sending {
+     if(clk_div.time_out) {
+       clk_div.start_1bit();
+       bit_count++;
+       txd := tdata[0];
+       tdata := tdata >> 1;
+       if(bit_count == 8) {
+         goto stop_bit;
+       }
+     }
+  }
+  state stop_bit {
+     if(clk_div.time_out) {
+        clk_div.start_1bit();
+        txd := 1;
+        goto stop_bit2;
+    }
+  }
+  state stop_bit2 {
+     if(clk_div.time_out) {
+        goto idle;
+    }
+  }
+
+}
+
+
+module uart {
+ uart_rx rx;
+ uart_tx tx;
+
+ rx.rx = rxd;
+ txd   = tx.tx;
+
+ func read_rxdata_ack rx.rx_ack();
+ func rx.rx_ready rxready(rx.data);
+ func send_txdata tx.tx_out(data_out);
+ func tx.txready  txready();
+
+ func set_divider {
+   rx.set_div(ck_div);
+   tx.set_div(ck_div);
+ }
+
+}
+
+#ifdef DEBUG
+ declare sim simulation{}
+ module  sim {
+ uart uart_1;
+ uart_1.rxd=uart_1.txd;
+
+ _init {
+  label_name loop;
+  _display("SIM START");
+  _delay(25);
+  uart_1.send_txdata(0x45);
+  _delay(100);
+loop:
+  if(uart_1.rxready==0) goto loop;
+  uart_1.read_rxdata_ack();
+  _delay(100);
+  _finish("SIM END");
+ } 
+}
+#endif
+
