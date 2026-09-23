@@ -1,0 +1,256 @@
+/*******************************************************************************
+*DE0 : SoC exercise material for CFS 2013
+* CLOCK_50 must be connected to m_clock
+********************************************************************************
+* 2014.03.18  Adopted to PS/2 and timer
+* 2013.07.09  Initial version  by Y. Okuyama
+*******************************************************************************/
+
+#include "snx_system.inc"
+#include "key.inc"
+#include "sw.inc"
+#include "GPIO.inc"
+#include "HEX.inc"
+#include "LED.inc"
+#include "ps2in.inc"
+#include "timer.inc"
+#include "imem.inc"
+#include "MEM/dmem.inc"
+#include "LCD_controller.inc"
+#include "VGA_ctrl.inc"
+
+//---------Address space definition--------
+#define BASE_IMEM	16'h0000
+#define SPACE_IMEM	12
+#define BASE_DMEM	16'h1000
+#define SPACE_DMEM	12
+#define BASE_KEY	16'hA000
+#define SPACE_KEY	0
+#define BASE_SW		16'hA001
+#define SPACE_SW	0
+#define BASE_LED	16'hA002
+#define SPACE_LED	1
+#define BASE_PS2	16'hA004
+#define SPACE_PS2	1
+#define BASE_HEX	16'hA008
+#define SPACE_HEX	3
+#define BASE_GPIO	16'hA010
+#define SPACE_GPIO	4
+#define BASE_LCD	16'hA020
+#define SPACE_LCD	5
+#define BASE_TIMER	16'hA100
+#define SPACE_TIMER	2
+#define BASE_VGA	16'hC000
+#define SPACE_VGA	12
+
+declare DE0_CV {
+////////////////////////	Push Button		////////////////////////
+input	BUTTON[3]	;					//	Pushbutton[2:0]
+////////////////////////	DPDT Switch		////////////////////////
+input	SW[10]	;						//	Toggle Switch[9:0]
+////////////////////////	7-SEG Dispaly	////////////////////////
+output	HEX0_D[7];					//	Seven Segment Digit 0
+output	HEX0_DP;				//	Seven Segment Digit DP 0
+output	HEX1_D[7];					//	Seven Segment Digit 1
+output	HEX1_DP;				//	Seven Segment Digit DP 1
+output	HEX2_D[7];					//	Seven Segment Digit 2
+output	HEX2_DP;				//	Seven Segment Digit DP 2
+output	HEX3_D[7];					//	Seven Segment Digit 3
+output	HEX3_DP;				//	Seven Segment Digit DP 3
+////////////////////////////	GPIO		////////////////////////////
+output	GPIO_0[36];					//	GPIO 0
+output	GPIO_1[36];					//	GPIO 1
+////////////////////////////	LED		////////////////////////////
+output	LEDG[10];					//	LED Green[9:0]
+////////////////////////////	UART	////////////////////////////
+output	UART_TXD;				//	UART Transmitter
+input	UART_RXD;				//	UART Receiver
+output	UART_CTS;				//	UART Clear To Send
+input	UART_RTS;				//	UART Request To Send
+////////////////////	LCD Module 16X2	////////////////////////////
+inout	LCD_DATA[8];				//	LCD Data bus 8 bits
+output			LCD_BLON;				//	LCD Back Light ON/OFF
+output			LCD_RW;					//	LCD Read/Write Select, 0 = Write, 1 = Read
+output			LCD_EN;					//	LCD Enable
+output			LCD_RS;					//	LCD Command/Data Select, 0 = Command, 1 = Data
+////////////////////////	PS2		////////////////////////////////
+inout		 	PS2_KBDAT;				//	PS2 Keyboard Data
+inout			PS2_KBCLK;				//	PS2 Keyboard Clock
+inout		 	PS2_MSDAT;				//	PS2 Mouse Data
+inout			PS2_MSCLK;				//	PS2 Mouse Clock
+////////////////////////	VGA			////////////////////////////
+output			VGA_HS;					//	VGA H_SYNC
+output			VGA_VS;					//	VGA V_SYNC
+output			VGA_R[4];   				//	VGA Red[3:0]
+output			VGA_G[4];	 			//	VGA Green[3:0]
+output			VGA_B[4];   				//	VGA Blue[3:0]
+
+}
+
+module DE0_CV {
+
+/**********************************************
+* Module decralations
+**********************************************/
+	dmem 			dmem_i;
+	imem 			imem_i;
+	HEX  			hex_i;
+	key  			key_i;
+	LCD_controller		lcd_i;
+	LED			led_i;
+	GPIO			gpio_i;
+	snx_system		snx_i;
+	sw			sw_i;
+	VGA_ctrl		vga_i;
+	ps2_in			ps2in_i;
+	timer			timer_i;
+
+// Address register
+   	reg adrs_reg[16];
+// Internal functions
+	func_self read_imem();
+	func_self read_dmem();
+	func_self read_hex();
+	func_self read_gpio();
+	func_self read_key();
+	func_self read_lcd();
+	func_self read_led();
+	func_self read_sw();
+	func_self read_vga();
+	func_self read_ps2in();
+	func_self read_timer();
+
+/**********************************************
+* Peripheral settings
+**********************************************/
+//--------Memories--------
+	dmem_i.clock = m_clock;
+	imem_i.clock = m_clock;
+//--------HEX--------
+	.{HEX0_DP,HEX0_D} = hex_i.HEX0;
+	.{HEX1_DP,HEX1_D} = hex_i.HEX1;
+	.{HEX2_DP,HEX2_D} = hex_i.HEX2;
+	.{HEX3_DP,HEX3_D} = hex_i.HEX3;
+//--------KEY--------
+	key_i.KEY = {0b1,BUTTON};
+//--------LCD--------
+	lcd_i.rst = p_reset;
+	lcd_i.cpu_clk = m_clock;
+	lcd_i.sys_clk = m_clock;
+	LCD_DATA = lcd_i.LCD_DATA;
+	LCD_BLON = 0;
+	LCD_RW   = lcd_i.LCD_RW;
+	LCD_EN   = lcd_i.LCD_EN;
+	LCD_RS   = lcd_i.LCD_RS;
+//--------LED--------
+	LEDG	 = led_i.LEDG;
+//--------GPIO
+	GPIO_0	 = gpio_i.GPIO_0;
+	GPIO_1	 = gpio_i.GPIO_1;
+//--------SW--------
+	sw_i.SW = {0b000000,SW[9:0]};
+//--------PS2 keyboard --------
+ 	ps2in_i.rxd  = PS2_KBDAT;
+	ps2in_i.rxc  = PS2_KBCLK;
+//--------VGA--------
+	VGA_VS    = ~vga_i.VS;
+	VGA_HS    = ~vga_i.HS;
+	VGA_R     = vga_i.R;
+	VGA_G     = vga_i.G;
+	VGA_B     = vga_i.B;
+
+
+	function timer_i.intr snx_i.intr();
+/**********************************************
+* Data-bus read operation
+**********************************************/
+	function snx_i.memory_read any{
+		snx_i.adrs[15:SPACE_IMEM] == (BASE_IMEM>>SPACE_IMEM)[15-SPACE_IMEM:0] : read_imem();
+		snx_i.adrs[15:SPACE_DMEM] == (BASE_DMEM>>SPACE_DMEM)[15-SPACE_DMEM:0] : read_dmem();
+		snx_i.adrs[15:SPACE_HEX ] == (BASE_HEX >>SPACE_HEX )[15-SPACE_HEX :0] : read_hex();
+		snx_i.adrs[15:SPACE_GPIO ] == (BASE_GPIO >>SPACE_GPIO )[15-SPACE_GPIO :0] : read_gpio();
+		snx_i.adrs[15:SPACE_KEY ] == (BASE_KEY >>SPACE_KEY )[15-SPACE_KEY :0] : read_key();
+		snx_i.adrs[15:SPACE_LCD ] == (BASE_LCD >>SPACE_LCD )[15-SPACE_LCD :0] : read_lcd();
+		snx_i.adrs[15:SPACE_LED ] == (BASE_LED >>SPACE_LED )[15-SPACE_LED :0] : read_led();
+		snx_i.adrs[15:SPACE_SW  ] == (BASE_SW  >>SPACE_SW  )[15-SPACE_SW  :0] : read_sw();
+
+		snx_i.adrs[15:SPACE_PS2 ] == (BASE_PS2  >>SPACE_PS2  )[15-SPACE_PS2  :0] : read_ps2in();
+		snx_i.adrs[15:SPACE_TIMER  ] == (BASE_TIMER  >>SPACE_TIMER  )[15-SPACE_SW  :0] : read_timer();
+
+		snx_i.adrs[15:SPACE_VGA ] == (BASE_VGA >>SPACE_VGA )[15-SPACE_VGA :0] : read_vga();
+	}
+
+	function read_imem seq {
+		 imem_i.address = snx_i.adrs[SPACE_IMEM-1:0];
+		 snx_i.datai=imem_i.q;
+	}
+	function read_dmem seq {
+		 dmem_i.address = snx_i.adrs[SPACE_DMEM-1:0];
+		 snx_i.datai=dmem_i.q;
+	}
+	function read_hex seq {
+		 adrs_reg := snx_i.adrs;
+		 snx_i.datai = hex_i.read(adrs_reg[SPACE_HEX-1:0]);
+	}
+	function read_gpio seq {
+		 adrs_reg := snx_i.adrs;
+		 snx_i.datai = gpio_i.read(adrs_reg[SPACE_GPIO-1:0]);
+	}
+	function read_key seq {
+		 adrs_reg := snx_i.adrs;
+		 snx_i.datai = key_i.read();
+	}
+	function read_lcd seq {
+		 {lcd_i.adrs=snx_i.adrs[SPACE_LCD-1:0]; lcd_i.cs();}
+		 {snx_i.datai = lcd_i.to_cpu; lcd_i.cs();}
+	}
+	function read_led seq {
+		 adrs_reg := snx_i.adrs;
+		 snx_i.datai = led_i.read(adrs_reg[SPACE_LED-1:0]);
+	}
+	function read_sw seq {
+		 adrs_reg := snx_i.adrs;
+		 snx_i.datai = sw_i.read();
+	}
+
+	function read_ps2in seq {
+		 adrs_reg := snx_i.adrs;
+		 snx_i.datai = if (~adrs_reg[0]) {0x00, ps2in_i.port_read()}
+		 	       else {0x00, ps2in_i.rxready, 7'h00};
+	}
+
+	function read_timer seq {
+		 adrs_reg := snx_i.adrs;
+		 snx_i.datai = timer_i.read(adrs_reg[SPACE_TIMER-1:0]);
+	}
+
+	function read_vga seq {
+		 adrs_reg := snx_i.adrs;	
+		 snx_i.datai = 16'(vga_i.read(adrs_reg[SPACE_VGA-1:0]).r_data);
+	}
+
+/**********************************************
+* Data-bus write operation
+**********************************************/
+	function snx_i.memory_write any{
+		snx_i.adrs[15:SPACE_DMEM] ==(BASE_DMEM>>SPACE_DMEM)[15-SPACE_DMEM:0] : 
+					dmem_i.wren(snx_i.adrs[SPACE_DMEM-1:0],snx_i.datao);
+		snx_i.adrs[15:SPACE_HEX ] ==(BASE_HEX >>SPACE_HEX )[15-SPACE_HEX :0] :  
+					hex_i.write(snx_i.adrs[SPACE_HEX-1:0], snx_i.datao);
+		snx_i.adrs[15:SPACE_GPIO ] ==(BASE_GPIO >>SPACE_GPIO )[15-SPACE_GPIO :0] :  
+	any {
+		snx_i.adrs[SPACE_GPIO-1]==0:
+					gpio_i.write(snx_i.adrs[SPACE_GPIO-2:0], snx_i.datao);
+		snx_i.adrs[SPACE_GPIO-1]==1:
+					gpio_i.direction(snx_i.adrs[SPACE_GPIO-2:0], snx_i.datao);
+	}
+		snx_i.adrs[15:SPACE_LCD ] ==(BASE_LCD >>SPACE_LCD )[15-SPACE_LCD :0] :  
+					{lcd_i.we(snx_i.adrs[SPACE_LCD-1:0], snx_i.datao);lcd_i.cs();}
+		snx_i.adrs[15:SPACE_LED ] ==(BASE_LED >>SPACE_LED )[15-SPACE_LED :0] :  
+					led_i.write(snx_i.adrs[SPACE_LED-1:0], snx_i.datao);
+		snx_i.adrs[15:SPACE_TIMER] ==(BASE_TIMER >>SPACE_TIMER )[15-SPACE_TIMER :0] :  
+					timer_i.write(snx_i.adrs[SPACE_TIMER-1:0], snx_i.datao);
+		snx_i.adrs[15:SPACE_VGA ] ==(BASE_VGA >>SPACE_VGA )[15-SPACE_VGA :0] :  
+					vga_i.write(snx_i.adrs[SPACE_VGA-1:0], snx_i.datao);
+	}
+}

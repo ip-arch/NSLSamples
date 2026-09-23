@@ -1,0 +1,20 @@
+#include "VGA_ctrl.inc"
+
+/*
+declare ROM_8x4K {
+        input           address[12];
+        output          q[8];
+}
+*/
+
+
+module ROM_8x4K {
+	mem cgrom[4096][8];
+	//reg outreg[8];
+	_readmemh("CGROM.hex", cgrom);
+
+	q=cgrom[address];
+	//outreg:=cgrom[address];
+	//q=outreg;
+}
+
