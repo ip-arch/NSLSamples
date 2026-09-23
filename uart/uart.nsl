@@ -42,8 +42,8 @@ module uart_clk {
 declare uart_rx {
   input rx;
   output data[8];
-  func_out rx_ready(data);
-  func_in rx_ack();
+  func_out rx_ready();
+  func_in rx_read(): data;
   input div[16];
   func_in set_div(div);
 }
@@ -53,12 +53,18 @@ module uart_rx {
   reg rdata[8]=0;
   reg bit_count[3]=0;
   uart_clk clk_div;
+  func_self rx_ack();
   state_name wait_start, recieve, hold;
 
   rxd1 := rx; rxd := rxd1;
 
   func set_div {
     clk_div.set_div(div);
+  }
+
+  func rx_read {
+	rx_ack();
+	return rdata;
   }
 
   state wait_start {
@@ -80,7 +86,7 @@ module uart_rx {
   }
   state hold {
     if(rx_ack) goto wait_start;
-    rx_ready(rdata);
+    rx_ready();
   }
 }
 
@@ -155,8 +161,8 @@ module uart {
  rx.rx = rxd;
  txd   = tx.tx;
 
- func read_rxdata_ack rx.rx_ack();
- func rx.rx_ready rxready(rx.data);
+ func read_rxdata return rx.rx_read().data;
+ func rx.rx_ready rxready();
  func send_txdata tx.tx_out(data_out);
  func tx.txready  txready();
 
@@ -171,6 +177,7 @@ module uart {
  declare sim simulation{}
  module  sim {
  uart uart_1;
+ wire data[8];
  uart_1.rxd=uart_1.txd;
 
  _init {
@@ -181,8 +188,8 @@ module uart {
   _delay(100);
 loop:
   if(uart_1.rxready==0) goto loop;
-  uart_1.read_rxdata_ack();
-  _delay(100);
+  data = uart_1.read_rxdata();
+  _delay(200);
   _finish("SIM END");
  } 
 }

@@ -8,7 +8,6 @@
 * Host signals:
 *   Recieve data: data_in
 *    When data is ready, rx_ready is asserted.
-*    Host can send acknowledge with read_rxdata_ack
 *   Send data: data_out
 *    Host can send send_txdata(data_out) only when txready is asserted
 *   Clock devider:
@@ -18,8 +17,8 @@
 declare uart {
  input rxd;            // Serial RXD
  output data_in[8];    // To Host data
- func_in read_rxdata_ack(); // Host to UART Ack
- func_out rxready(data_in); // UART to Host data ready
+ func_in read_rxdata(): data_in; // Host to UART Data
+ func_out rxready(); // UART to Host data ready
 
  output txd;           // Serial TXD
  input  data_out[8];   // Host to Serial DATA
